@@ -1,0 +1,99 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { parse, format, startOfDay, endOfDay, addDays, subDays } from 'date-fns';
+import AppShell from '../components/AppShell';
+import { db } from '../firebase/config';
+
+export default function DayView() {
+  const { dateStr } = useParams(); // yyyy-MM-dd
+  const navigate = useNavigate();
+  const [satsangs, setSatsangs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const day = parse(dateStr, 'yyyy-MM-dd', new Date());
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const q = query(
+        collection(db, 'satsangs'),
+        where('date', '>=', Timestamp.fromDate(startOfDay(day))),
+        where('date', '<=', Timestamp.fromDate(endOfDay(day))),
+      );
+      const snap = await getDocs(q);
+      setSatsangs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }
+    load();
+  // eslint-disable-next-line
+  }, [dateStr]);
+
+  function prevDay() {
+    navigate(`/satsangs/${format(subDays(day, 1), 'yyyy-MM-dd')}`);
+  }
+  function nextDay() {
+    navigate(`/satsangs/${format(addDays(day, 1), 'yyyy-MM-dd')}`);
+  }
+
+  return (
+    <AppShell>
+      <h1 className="page-header mt-4">Satsang Seva</h1>
+
+      {/* Date navigator */}
+      <div className="flex items-center justify-center gap-6 mb-6">
+        <button onClick={prevDay} className="text-saffron-600 text-xl font-bold px-2 hover:text-saffron-800">‹</button>
+        <span className="font-bold text-gray-800">{format(day, 'd MMMM yyyy')}</span>
+        <button onClick={nextDay} className="text-saffron-600 text-xl font-bold px-2 hover:text-saffron-800">›</button>
+      </div>
+
+      {loading && <p className="text-center text-gray-400">Loading…</p>}
+
+      {!loading && satsangs.length === 0 && (
+        <div className="text-center mt-8">
+          <p className="text-gray-400 mb-6">No satsangs planned for this date.</p>
+          <button
+            className="btn-primary max-w-xs"
+            onClick={() => navigate(`/create-invite/${dateStr}`)}
+          >
+            Create Satsang Invite
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {satsangs.map(s => (
+          <button
+            key={s.id}
+            onClick={() => navigate(`/invite/${s.id}`)}
+            className="flex items-stretch gap-3 border-2 border-saffron-200 rounded-xl overflow-hidden hover:border-saffron-400 transition-colors text-left"
+          >
+            <div className="bg-saffron-50 px-3 py-3 flex flex-col items-center justify-center min-w-[64px]">
+              <span className="text-sm font-bold text-saffron-600">{s.startTime || '—'}</span>
+            </div>
+            <div className="py-3 pr-3">
+              <p className="font-semibold text-gray-800">{s.suburb || s.address?.split('\n')[0] || 'Satsang'}</p>
+              <p className="text-sm text-gray-500">{s.hostName || ''}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {!loading && satsangs.length > 0 && (
+        <button
+          className="btn-secondary mt-6"
+          onClick={() => navigate(`/create-invite/${dateStr}`)}
+        >
+          + Add another satsang
+        </button>
+      )}
+
+      <button
+        className="mt-4 text-sm text-saffron-600 w-full text-center hover:underline"
+        onClick={() => navigate('/satsangs')}
+      >
+        ← Back to calendar
+      </button>
+    </AppShell>
+  );
+}
