@@ -55,7 +55,7 @@ export default function ViewInvite() {
             <img src={invite.imageUrl} alt="Satsang" className="h-28 rounded-xl object-cover" />
           </div>
         )}
-        <Row label="Public Invite" value={invite.publicInvite ? 'Yes' : 'No'} />
+        <Row label="Booking Type" value={invite.publicInvite ? 'Public' : 'Private'} />
       </div>
 
       <div className="flex gap-3">

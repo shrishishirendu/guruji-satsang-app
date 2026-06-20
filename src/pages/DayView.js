@@ -62,21 +62,33 @@ export default function DayView() {
       )}
 
       <div className="flex flex-col gap-3">
-        {satsangs.map(s => (
-          <button
-            key={s.id}
-            onClick={() => navigate(`/invite/${s.id}`)}
-            className="flex items-stretch gap-3 border-2 border-saffron-200 rounded-xl overflow-hidden hover:border-saffron-400 transition-colors text-left"
-          >
-            <div className="bg-saffron-50 px-3 py-3 flex flex-col items-center justify-center min-w-[64px]">
-              <span className="text-sm font-bold text-saffron-600">{s.startTime || '—'}</span>
-            </div>
-            <div className="py-3 pr-3">
-              <p className="font-semibold text-gray-800">{s.suburb || s.address?.split('\n')[0] || 'Satsang'}</p>
-              <p className="text-sm text-gray-500">{s.hostName || ''}</p>
-            </div>
-          </button>
-        ))}
+        {satsangs.map(s => {
+          const isPrivate = !s.publicInvite;
+          const cardColor = isPrivate
+            ? 'border-blue-200 hover:border-blue-400'
+            : 'border-green-200 hover:border-green-400';
+          const timeBlock = isPrivate
+            ? 'bg-blue-50 text-blue-600'
+            : 'bg-green-50 text-green-600';
+          return (
+            <button
+              key={s.id}
+              onClick={() => navigate(`/invite/${s.id}`)}
+              className={`flex items-stretch gap-3 border-2 ${cardColor} rounded-xl overflow-hidden transition-colors text-left`}
+            >
+              <div className={`${timeBlock} px-3 py-3 flex flex-col items-center justify-center min-w-[64px]`}>
+                <span className="text-sm font-bold">{s.startTime || '—'}</span>
+              </div>
+              <div className="py-3 pr-3">
+                <p className="font-semibold text-gray-800">{s.suburb || s.address?.split('\n')[0] || 'Satsang'}</p>
+                <p className="text-sm text-gray-500">{s.hostName || ''}</p>
+                <span className={`text-xs font-semibold ${isPrivate ? 'text-blue-500' : 'text-green-500'}`}>
+                  {isPrivate ? 'Private' : 'Public'}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {!loading && satsangs.length > 0 && (

@@ -221,15 +221,35 @@ export default function CreateEditInvite() {
           )}
         </div>
 
-        {/* Public invite toggle */}
-        <div className="flex items-center gap-3">
-          <label className="label mb-0">Public Invite</label>
-          <input
-            type="checkbox"
-            checked={form.publicInvite}
-            onChange={e => set('publicInvite', e.target.checked)}
-            className="w-5 h-5 accent-saffron-400"
-          />
+        {/* Booking type: Public vs Private */}
+        <div>
+          <label className="label">Booking Type</label>
+          <div className="flex gap-6 mt-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="bookingType"
+                checked={form.publicInvite === true}
+                onChange={() => set('publicInvite', true)}
+                className="w-4 h-4 accent-green-500"
+              />
+              <span className="text-sm text-gray-700">
+                Public <span className="text-green-500 font-medium">(green)</span>
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="bookingType"
+                checked={form.publicInvite === false}
+                onChange={() => set('publicInvite', false)}
+                className="w-4 h-4 accent-blue-500"
+              />
+              <span className="text-sm text-gray-700">
+                Private <span className="text-blue-500 font-medium">(blue)</span>
+              </span>
+            </label>
+          </div>
         </div>
 
         <button className="btn-primary mt-2" type="submit" disabled={saving}>

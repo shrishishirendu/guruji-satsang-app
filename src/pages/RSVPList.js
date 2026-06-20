@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 
@@ -15,10 +15,12 @@ export default function RSVPList() {
       const q = query(
         collection(db, 'rsvps'),
         where('inviteId', '==', inviteId),
-        orderBy('createdAt', 'asc'),
       );
       const snap = await getDocs(q);
-      setRsvps(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Sort by creation time client-side (avoids needing a composite index)
+      rows.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+      setRsvps(rows);
       setLoading(false);
     }
     load();
