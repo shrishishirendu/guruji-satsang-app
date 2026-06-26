@@ -30,5 +30,16 @@ service cloud.firestore {
          request.auth.uid == resource.data.toUid);
       allow create: if request.auth != null;
     }
+
+    // Guests — phone-directory invitees added by a host.
+    // Any auth user can read (host views them on the RSVP list); only the
+    // host who added a guest can modify or remove them.
+    match /guests/{guestId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.addedByUid;
+      allow update, delete: if request.auth != null &&
+        request.auth.uid == resource.data.addedByUid;
+    }
   }
 }

@@ -8,19 +8,24 @@ export default function RSVPList() {
   const { inviteId } = useParams();
   const navigate = useNavigate();
   const [rsvps, setRsvps] = useState([]);
+  const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const q = query(
-        collection(db, 'rsvps'),
-        where('inviteId', '==', inviteId),
-      );
-      const snap = await getDocs(q);
-      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const [rsvpSnap, guestSnap] = await Promise.all([
+        getDocs(query(collection(db, 'rsvps'), where('inviteId', '==', inviteId))),
+        getDocs(query(collection(db, 'guests'), where('inviteId', '==', inviteId))),
+      ]);
+      const rows = rsvpSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       // Sort by creation time client-side (avoids needing a composite index)
       rows.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
       setRsvps(rows);
+
+      const guestRows = guestSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      guestRows.sort((a, b) => (a.invitedAt?.toMillis?.() || 0) - (b.invitedAt?.toMillis?.() || 0));
+      setGuests(guestRows);
+
       setLoading(false);
     }
     load();
@@ -72,6 +77,25 @@ export default function RSVPList() {
               </tfoot>
             )}
           </table>
+        </div>
+      )}
+
+      {!loading && guests.length > 0 && (
+        <div className="card mt-6">
+          <h2 className="text-saffron-400 font-semibold mb-3 text-sm">
+            Invited from phone ({guests.length})
+          </h2>
+          <div className="flex flex-col gap-2">
+            {guests.map(g => (
+              <div key={g.id} className="flex justify-between items-center text-sm">
+                <span className="text-gray-700">{g.name}</span>
+                <span className="text-gray-400">{g.phone}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-3">
+            These guests were invited via WhatsApp. They’ll appear in the table above once they RSVP.
+          </p>
         </div>
       )}
 
