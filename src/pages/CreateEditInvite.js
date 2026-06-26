@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   collection, addDoc, doc, getDoc, updateDoc, Timestamp
 } from 'firebase/firestore';
-import { parse } from 'date-fns';
+import { parse, format } from 'date-fns';
 import toast from 'react-hot-toast';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
@@ -17,6 +17,7 @@ export default function CreateEditInvite() {
   const isEdit = Boolean(inviteId);
 
   const [form, setForm] = useState({
+    date:      dateStr || format(new Date(), 'yyyy-MM-dd'),
     startHour: '05', startMin: '00', startAmPm: 'AM',
     endHour:   '07', endMin:   '00', endAmPm:   'AM',
     address:   '',
@@ -38,6 +39,9 @@ export default function CreateEditInvite() {
         const [sh, sm, sa] = (d.startTime || '05:00 AM').split(/[: ]/);
         const [eh, em, ea] = (d.endTime   || '07:00 AM').split(/[: ]/);
         setForm({
+          date: d.date
+            ? format(d.date.toDate(), 'yyyy-MM-dd')
+            : (dateStr || format(new Date(), 'yyyy-MM-dd')),
           startHour: sh, startMin: sm, startAmPm: sa,
           endHour:   eh, endMin:   em, endAmPm:   ea,
           address:   d.address      || '',
@@ -50,7 +54,7 @@ export default function CreateEditInvite() {
         setExistingImageUrl(d.imageUrl || '');
       });
     }
-  }, [isEdit, inviteId]);
+  }, [isEdit, inviteId, dateStr]);
 
   function set(field, value) {
     setForm(f => ({ ...f, [field]: value }));
@@ -68,8 +72,8 @@ export default function CreateEditInvite() {
         imageUrl = await uploadImage(imageFile);
       }
 
-      const date = dateStr
-        ? Timestamp.fromDate(parse(dateStr, 'yyyy-MM-dd', new Date()))
+      const date = form.date
+        ? Timestamp.fromDate(parse(form.date, 'yyyy-MM-dd', new Date()))
         : null;
 
       const payload = {
@@ -113,13 +117,21 @@ export default function CreateEditInvite() {
       <h1 className="page-header mt-4">Satsang Seva</h1>
       <form onSubmit={handleSave} className="flex flex-col gap-4">
 
-        {/* Date (display only) */}
-        {dateStr && (
-          <div className="flex gap-4 items-center">
-            <span className="label w-28 shrink-0">Date</span>
-            <span className="text-gray-700">{dateStr}</span>
-          </div>
-        )}
+        {/* Date — editable, so you can pick any day without going back to the calendar */}
+        <div>
+          <label className="label">Date</label>
+          <input
+            type="date"
+            className="input-field"
+            value={form.date}
+            onChange={e => set('date', e.target.value)}
+          />
+          {form.date && (
+            <p className="text-xs text-gray-400 mt-1">
+              {format(parse(form.date, 'yyyy-MM-dd', new Date()), 'EEEE, d MMMM yyyy')}
+            </p>
+          )}
+        </div>
 
         {/* Suburb */}
         <div>

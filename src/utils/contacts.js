@@ -77,3 +77,24 @@ export function buildWhatsAppLink(phone, message) {
     ? `https://wa.me/${num}?text=${text}`
     : `https://wa.me/?text=${text}`; // no number → let host pick the chat
 }
+
+// Opens the device's native share sheet (WhatsApp, SMS, Messages, etc.) with the
+// invite. Unlike the Contact Picker, the Web Share API works on iPhone too, so
+// this is the most universal "send to anyone" button. Falls back to WhatsApp's
+// chat picker on desktops without a share sheet. Returns true if something opened.
+export async function shareInvite(invite, rsvpLink, hostName) {
+  const message = buildInviteMessage(invite, rsvpLink, hostName);
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      // The rsvpLink is already inside `message`, so we don't also pass `url`
+      // (some apps would otherwise show the link twice).
+      await navigator.share({ title: 'Satsang Seva invitation', text: message });
+      return true;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return false; // user cancelled
+      // otherwise fall through to the WhatsApp fallback below
+    }
+  }
+  window.open(buildWhatsAppLink('', message), '_blank', 'noopener');
+  return true;
+}

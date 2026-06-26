@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
+import { shareInvite } from '../utils/contacts';
 
 export default function ViewInvite() {
   const { inviteId } = useParams();
@@ -27,6 +28,21 @@ export default function ViewInvite() {
   const dateStr = invite.date
     ? format(invite.date.toDate(), 'd MMMM yyyy')
     : '—';
+
+  function handleShare() {
+    const rsvpLink = `${window.location.origin}/invite/${inviteId}/rsvp`;
+    shareInvite(
+      {
+        dateStr,
+        startTime: invite.startTime,
+        endTime: invite.endTime,
+        address: invite.address,
+        rsvpBy: invite.rsvpBy,
+      },
+      rsvpLink,
+      invite.hostName,
+    );
+  }
 
   function Row({ label, value, multiline }) {
     if (!value) return null;
@@ -58,7 +74,12 @@ export default function ViewInvite() {
         <Row label="Booking Type" value={invite.publicInvite ? 'Public' : 'Private'} />
       </div>
 
-      <div className="flex gap-3">
+      {/* Share — works on iPhone & Android (native share sheet) */}
+      <button className="btn-primary" onClick={handleShare}>
+        📲 Share Invite
+      </button>
+
+      <div className="flex gap-3 mt-3">
         {isHost && (
           <button
             className="btn-secondary flex-1"
@@ -68,7 +89,7 @@ export default function ViewInvite() {
           </button>
         )}
         <button
-          className="btn-primary flex-1"
+          className="btn-secondary flex-1"
           onClick={() => navigate(`/invite/${inviteId}/invite-sangat`)}
         >
           Invite Sangat

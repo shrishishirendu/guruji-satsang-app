@@ -85,8 +85,16 @@ export default function SatsangsCalendar() {
         Aum Namah Shivay Guru ji Sada Sahay
       </p>
 
+      {/* Primary action — create a new Satsang in one tap (date is editable next) */}
+      <button
+        className="btn-primary mb-4"
+        onClick={() => navigate(`/create-invite/${format(new Date(), 'yyyy-MM-dd')}`)}
+      >
+        ➕ Create a Satsang Invite
+      </button>
+
       <p className="text-center text-sm text-gray-600 mb-1">
-        Please select a date below to create or view a Satsang Invite
+        …or tap a date below to view or add a Satsang
       </p>
       <p className="text-center text-sm mb-1">
         <span className="text-green-500 font-semibold">Green</span> dates have public Satsangs,{' '}
