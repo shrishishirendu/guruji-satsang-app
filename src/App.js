@@ -8,6 +8,7 @@ import Welcome          from './pages/Welcome';
 import Register         from './pages/Register';
 import Registered       from './pages/Registered';
 import Login            from './pages/Login';
+import ForgotPassword   from './pages/ForgotPassword';
 import SatsangsCalendar from './pages/SatsangsCalendar';
 import DayView          from './pages/DayView';
 import CreateEditInvite from './pages/CreateEditInvite';
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/"          element={<Welcome />} />
           <Route path="/register"  element={<Register />} />
           <Route path="/login"     element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/registered" element={<PrivateRoute><Registered /></PrivateRoute>} />
           <Route path="/satsangs"   element={<PrivateRoute><SatsangsCalendar /></PrivateRoute>} />
           <Route path="/satsangs/:dateStr" element={<PrivateRoute><DayView /></PrivateRoute>} />

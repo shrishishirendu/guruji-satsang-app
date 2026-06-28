@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
@@ -35,6 +36,12 @@ export function AuthProvider({ children }) {
     return signInWithEmailAndPassword(auth, email, password);
   }
 
+  // Sends a password-reset email via Firebase. The link in the email opens
+  // Firebase's hosted reset page — no extra backend needed.
+  function resetPassword(email) {
+    return sendPasswordResetEmail(auth, email);
+  }
+
   function logout() {
     return signOut(auth);
   }
@@ -60,7 +67,7 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const value = { currentUser, userProfile, register, login, logout, loading };
+  const value = { currentUser, userProfile, register, login, resetPassword, logout, loading };
 
   return (
     <AuthContext.Provider value={value}>

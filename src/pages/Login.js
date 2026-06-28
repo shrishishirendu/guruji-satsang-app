@@ -46,6 +46,11 @@ export default function Login() {
         <button className="btn-primary mt-2" type="submit" disabled={loading}>
           {loading ? 'Signing in…' : 'Sign In'}
         </button>
+        <p className="text-center text-sm">
+          <Link to="/forgot-password" className="text-saffron-600 font-medium">
+            Forgot password?
+          </Link>
+        </p>
         <p className="text-center text-sm text-gray-500">
           New here?{' '}
           <Link to="/register" className="text-saffron-600 font-medium">Register</Link>
