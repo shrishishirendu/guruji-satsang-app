@@ -35,6 +35,16 @@ export default function Register() {
   return (
     <AppShell>
       <h1 className="page-header mt-4">Satsang Seva</h1>
+
+      {/* Guru Ji thumbnail — file lives in /public/guruji.jpg */}
+      <div className="flex justify-center mb-4">
+        <img
+          src="/guruji.jpg"
+          alt="Guru Ji"
+          className="w-20 h-20 rounded-full object-cover object-top border-2 border-saffron-200 shadow-sm"
+        />
+      </div>
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-4">
         <div>
           <input
