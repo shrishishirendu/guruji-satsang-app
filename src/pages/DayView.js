@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { parse, format, isSameDay, addDays, subDays } from 'date-fns';
+import { parse, format, isSameDay, isBefore, startOfDay, addDays, subDays } from 'date-fns';
 import AppShell from '../components/AppShell';
 import { useAuth } from '../context/AuthContext';
 import { loadVisibleSatsangs } from '../utils/satsangs';
@@ -13,6 +13,8 @@ export default function DayView() {
   const [loading, setLoading] = useState(true);
 
   const day = parse(dateStr, 'yyyy-MM-dd', new Date());
+  // You can't create a satsang in the past — only view what's already there.
+  const isPast = isBefore(day, startOfDay(new Date()));
 
   useEffect(() => {
     async function load() {
@@ -49,12 +51,14 @@ export default function DayView() {
       {!loading && satsangs.length === 0 && (
         <div className="text-center mt-8">
           <p className="text-gray-400 mb-6">No satsangs planned for this date.</p>
-          <button
-            className="btn-primary max-w-xs"
-            onClick={() => navigate(`/create-invite/${dateStr}`)}
-          >
-            Create Satsang Invite
-          </button>
+          {!isPast && (
+            <button
+              className="btn-primary max-w-xs"
+              onClick={() => navigate(`/create-invite/${dateStr}`)}
+            >
+              Create Satsang Invite
+            </button>
+          )}
         </div>
       )}
 
@@ -88,7 +92,7 @@ export default function DayView() {
         })}
       </div>
 
-      {!loading && satsangs.length > 0 && (
+      {!loading && satsangs.length > 0 && !isPast && (
         <button
           className="btn-secondary mt-6"
           onClick={() => navigate(`/create-invite/${dateStr}`)}

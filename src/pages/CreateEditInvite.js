@@ -161,17 +161,17 @@ export default function CreateEditInvite() {
         {/* Start time */}
         <div>
           <label className="label">Start Time</label>
-          <div className="flex gap-2">
-            <select className="input-field text-center" style={{maxWidth:80}} value={form.startHour}
+          <div className="flex items-center gap-2">
+            <select className="input-field flex-1 min-w-0 px-2 text-center" value={form.startHour}
               onChange={e => set('startHour', e.target.value)} aria-label="Start hour">
               {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
             </select>
-            <span className="self-center text-gray-400">:</span>
-            <select className="input-field text-center" style={{maxWidth:80}} value={form.startMin}
+            <span className="text-gray-400">:</span>
+            <select className="input-field flex-1 min-w-0 px-2 text-center" value={form.startMin}
               onChange={e => set('startMin', e.target.value)} aria-label="Start minute">
               {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            <select className="input-field" style={{maxWidth:80}} value={form.startAmPm}
+            <select className="input-field flex-1 min-w-0 px-2 text-center" value={form.startAmPm}
               onChange={e => set('startAmPm', e.target.value)} aria-label="Start AM/PM">
               <option>AM</option><option>PM</option>
             </select>
@@ -181,17 +181,17 @@ export default function CreateEditInvite() {
         {/* End time */}
         <div>
           <label className="label">End Time</label>
-          <div className="flex gap-2">
-            <select className="input-field text-center" style={{maxWidth:80}} value={form.endHour}
+          <div className="flex items-center gap-2">
+            <select className="input-field flex-1 min-w-0 px-2 text-center" value={form.endHour}
               onChange={e => set('endHour', e.target.value)} aria-label="End hour">
               {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
             </select>
-            <span className="self-center text-gray-400">:</span>
-            <select className="input-field text-center" style={{maxWidth:80}} value={form.endMin}
+            <span className="text-gray-400">:</span>
+            <select className="input-field flex-1 min-w-0 px-2 text-center" value={form.endMin}
               onChange={e => set('endMin', e.target.value)} aria-label="End minute">
               {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            <select className="input-field" style={{maxWidth:80}} value={form.endAmPm}
+            <select className="input-field flex-1 min-w-0 px-2 text-center" value={form.endAmPm}
               onChange={e => set('endAmPm', e.target.value)} aria-label="End AM/PM">
               <option>AM</option><option>PM</option>
             </select>
