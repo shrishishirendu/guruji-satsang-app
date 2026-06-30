@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  collection, getDocs, query, orderBy, addDoc, doc, getDoc, Timestamp,
+  collection, getDocs, query, where, doc, getDoc, setDoc, Timestamp,
 } from 'firebase/firestore';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -9,7 +9,7 @@ import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import {
-  isContactPickerSupported, pickContacts,
+  isContactPickerSupported, pickContacts, normalizePhone,
   buildInviteMessage, buildWhatsAppLink,
 } from '../utils/contacts';
 
@@ -36,15 +36,43 @@ export default function InviteSangat() {
     : '';
 
   useEffect(() => {
-    getDocs(query(collection(db, 'users'), orderBy('firstName'))).then(snap => {
-      setUsers(snap.docs
+    // Registered sangat, sorted alphabetically (dictionary order) by full name.
+    getDocs(collection(db, 'users')).then(snap => {
+      const list = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(u => u.id !== currentUser.uid)
+        .filter(u => u.id !== currentUser.uid);
+      list.sort((a, b) =>
+        `${a.firstName} ${a.lastName}`.toLowerCase()
+          .localeCompare(`${b.firstName} ${b.lastName}`.toLowerCase())
       );
+      setUsers(list);
     });
+
     getDoc(doc(db, 'satsangs', inviteId)).then(snap => {
       if (snap.exists()) setInvite({ id: snap.id, ...snap.data() });
     });
+
+    // Pre-tick people I've already invited, and re-load guests I've added, so a
+    // host managing the event doesn't re-send or lose existing entries (#6).
+    getDocs(query(collection(db, 'invitations'), where('fromUid', '==', currentUser.uid)))
+      .then(snap => {
+        const already = snap.docs
+          .map(d => d.data())
+          .filter(d => d.inviteId === inviteId)
+          .map(d => d.toUid);
+        if (already.length) setSelected(new Set(already));
+      })
+      .catch(() => {});
+
+    getDocs(query(collection(db, 'guests'), where('addedByUid', '==', currentUser.uid)))
+      .then(snap => {
+        const mine = snap.docs
+          .map(d => d.data())
+          .filter(d => d.inviteId === inviteId)
+          .map(d => ({ name: d.name, phone: d.displayPhone || d.phone }));
+        if (mine.length) setGuests(mine);
+      })
+      .catch(() => {});
   }, [currentUser.uid, inviteId]);
 
   function toggleUser(id) {
@@ -58,14 +86,16 @@ export default function InviteSangat() {
   // ---- Phone-directory helpers ---------------------------------------------
 
   function addGuest(name, phone) {
-    const cleanPhone = (phone || '').trim();
-    if (!cleanPhone) return toast.error('A phone number is required.');
+    const raw = (phone || '').trim();
+    if (!raw) return toast.error('A phone number is required.');
+    const norm = normalizePhone(raw);
     setGuests(g => {
-      if (g.some(x => x.phone === cleanPhone)) {
+      // Dedupe by normalized number so "0404…", "+61404…" and "61404…" match.
+      if (g.some(x => normalizePhone(x.phone) === norm)) {
         toast('Already added', { icon: 'ℹ️' });
         return g;
       }
-      return [...g, { name: (name || '').trim() || cleanPhone, phone: cleanPhone }];
+      return [...g, { name: (name || '').trim() || raw, phone: raw }];
     });
   }
 
@@ -78,10 +108,16 @@ export default function InviteSangat() {
     if (picked.length === 0) return;
     let added = 0;
     setGuests(g => {
-      const existing = new Set(g.map(x => x.phone));
-      const fresh = picked
-        .map(c => ({ name: c.name || c.phone, phone: c.phone.trim() }))
-        .filter(c => c.phone && !existing.has(c.phone));
+      const existing = new Set(g.map(x => normalizePhone(x.phone)));
+      const fresh = [];
+      picked.forEach(c => {
+        const raw = (c.phone || '').trim();
+        const norm = normalizePhone(raw);
+        if (raw && norm && !existing.has(norm)) {
+          existing.add(norm);
+          fresh.push({ name: c.name || raw, phone: raw });
+        }
+      });
       added = fresh.length;
       return [...g, ...fresh];
     });
@@ -117,8 +153,11 @@ export default function InviteSangat() {
     }
     setSending(true);
     try {
+      // Deterministic ids ("<inviteId>_<uid>" / "<inviteId>_<phone>") make
+      // re-sending idempotent — no duplicate invites (#6) — and act as the
+      // access grant the security rules check.
       const appUserWrites = [...selected].map(uid =>
-        addDoc(collection(db, 'invitations'), {
+        setDoc(doc(db, 'invitations', `${inviteId}_${uid}`), {
           inviteId,
           toUid: uid,
           fromUid: currentUser.uid,
@@ -126,19 +165,23 @@ export default function InviteSangat() {
           status: 'sent',
         })
       );
-      const guestWrites = guests.map(g =>
-        addDoc(collection(db, 'guests'), {
-          inviteId,
-          name: g.name,
-          phone: g.phone,
-          addedByUid: currentUser.uid,
-          source: 'phone-directory',
-          invitedAt: Timestamp.now(),
-        })
-      );
+      const guestWrites = guests
+        .map(g => ({ ...g, norm: normalizePhone(g.phone) }))
+        .filter(g => g.norm)
+        .map(g =>
+          setDoc(doc(db, 'guests', `${inviteId}_${g.norm}`), {
+            inviteId,
+            name: g.name,
+            phone: g.norm,
+            displayPhone: g.phone,
+            addedByUid: currentUser.uid,
+            source: 'phone-directory',
+            invitedAt: Timestamp.now(),
+          })
+        );
       await Promise.all([...appUserWrites, ...guestWrites]);
-      const total = selected.size + guests.length;
-      toast.success(`${total} invite${total === 1 ? '' : 's'} recorded!`);
+      const total = selected.size + guestWrites.length;
+      toast.success(`${total} invite${total === 1 ? '' : 's'} sent!`);
       navigate(`/invite/${inviteId}/invited`);
     } catch (err) {
       console.error(err);
@@ -202,7 +245,7 @@ export default function InviteSangat() {
       {/* ---- Invite from phone directory ---- */}
       <h2 className="text-saffron-500 font-semibold mb-2">Invite from your phone</h2>
 
-      {isContactPickerSupported() ? (
+      {isContactPickerSupported() && (
         <button
           type="button"
           className="btn-secondary mb-3"
@@ -210,11 +253,6 @@ export default function InviteSangat() {
         >
           📇 Pick from Phone Contacts
         </button>
-      ) : (
-        <p className="text-xs text-gray-400 mb-3">
-          Importing directly from your contacts isn’t supported on this device/browser
-          (works on Android Chrome). Add people manually below.
-        </p>
       )}
 
       {/* Manual add */}
@@ -277,7 +315,7 @@ export default function InviteSangat() {
 
       <p className="text-xs text-gray-400 mb-4 text-center">
         Tap <span className="text-green-600 font-medium">WhatsApp</span> to send each guest
-        their invite & RSVP link. Sangat not on the app are saved to this satsang’s guest list.
+        their invite &amp; RSVP link.
       </p>
 
       <button className="btn-primary" onClick={sendInvites} disabled={sending}>

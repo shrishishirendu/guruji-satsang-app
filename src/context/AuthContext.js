@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
+import { normalizePhone } from '../utils/contacts';
 
 const AuthContext = createContext();
 
@@ -26,6 +27,9 @@ export function AuthProvider({ children }) {
       firstName,
       lastName,
       mobile,
+      // Normalized form lets the security rules match phone-invited guests to
+      // their registered number so they can see private satsangs they're on.
+      mobileNormalized: normalizePhone(mobile),
       email,
       createdAt: new Date(),
     });
@@ -52,7 +56,17 @@ export function AuthProvider({ children }) {
       if (user) {
         try {
           const snap = await getDoc(doc(db, 'users', user.uid));
-          setUserProfile(snap.exists() ? snap.data() : null);
+          const profile = snap.exists() ? snap.data() : null;
+          // Backfill mobileNormalized for accounts created before it existed,
+          // so older users can still be matched to phone invites.
+          if (profile && profile.mobile) {
+            const norm = normalizePhone(profile.mobile);
+            if (profile.mobileNormalized !== norm) {
+              await setDoc(doc(db, 'users', user.uid), { mobileNormalized: norm }, { merge: true });
+              profile.mobileNormalized = norm;
+            }
+          }
+          setUserProfile(profile);
         } catch (err) {
           // e.g. Firestore rules not yet published, or transient error.
           // Don't crash the app — just treat the profile as missing.

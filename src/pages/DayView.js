@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { parse, format, startOfDay, endOfDay, addDays, subDays } from 'date-fns';
+import { parse, format, isSameDay, addDays, subDays } from 'date-fns';
 import AppShell from '../components/AppShell';
-import { db } from '../firebase/config';
+import { useAuth } from '../context/AuthContext';
+import { loadVisibleSatsangs } from '../utils/satsangs';
 
 export default function DayView() {
   const { dateStr } = useParams(); // yyyy-MM-dd
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [satsangs, setSatsangs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -16,18 +17,14 @@ export default function DayView() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const q = query(
-        collection(db, 'satsangs'),
-        where('date', '>=', Timestamp.fromDate(startOfDay(day))),
-        where('date', '<=', Timestamp.fromDate(endOfDay(day))),
-      );
-      const snap = await getDocs(q);
-      setSatsangs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // Only satsangs this user may see; filter to the day client-side.
+      const visible = await loadVisibleSatsangs(currentUser);
+      setSatsangs(visible.filter(s => s.date?.toDate && isSameDay(s.date.toDate(), day)));
       setLoading(false);
     }
     load();
   // eslint-disable-next-line
-  }, [dateStr]);
+  }, [dateStr, currentUser]);
 
   function prevDay() {
     navigate(`/satsangs/${format(subDays(day, 1), 'yyyy-MM-dd')}`);

@@ -10,23 +10,31 @@ export default function RSVPList() {
   const [rsvps, setRsvps] = useState([]);
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [denied, setDenied] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const [rsvpSnap, guestSnap] = await Promise.all([
-        getDocs(query(collection(db, 'rsvps'), where('inviteId', '==', inviteId))),
-        getDocs(query(collection(db, 'guests'), where('inviteId', '==', inviteId))),
-      ]);
-      const rows = rsvpSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Sort by creation time client-side (avoids needing a composite index)
-      rows.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
-      setRsvps(rows);
+      try {
+        // The rules only let the satsang's host read these, so a non-host
+        // query is rejected — show an access message instead of crashing.
+        const [rsvpSnap, guestSnap] = await Promise.all([
+          getDocs(query(collection(db, 'rsvps'), where('inviteId', '==', inviteId))),
+          getDocs(query(collection(db, 'guests'), where('inviteId', '==', inviteId))),
+        ]);
+        const rows = rsvpSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Sort by creation time client-side (avoids needing a composite index)
+        rows.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+        setRsvps(rows);
 
-      const guestRows = guestSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      guestRows.sort((a, b) => (a.invitedAt?.toMillis?.() || 0) - (b.invitedAt?.toMillis?.() || 0));
-      setGuests(guestRows);
-
-      setLoading(false);
+        const guestRows = guestSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        guestRows.sort((a, b) => (a.invitedAt?.toMillis?.() || 0) - (b.invitedAt?.toMillis?.() || 0));
+        setGuests(guestRows);
+      } catch (err) {
+        console.warn('RSVP list not accessible:', err);
+        setDenied(true);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [inviteId]);
@@ -40,7 +48,17 @@ export default function RSVPList() {
 
       {loading && <p className="text-center text-gray-400">Loading…</p>}
 
-      {!loading && (
+      {!loading && denied && (
+        <p className="text-center text-gray-400 mt-8">
+          Only the host can view the RSVP list for this satsang.
+        </p>
+      )}
+
+      {!loading && !denied && (
+        <>
+        <p className="text-sm text-gray-500 mb-2">
+          {rsvps.length} response{rsvps.length === 1 ? '' : 's'} · {totalAdults + totalChildren} attending
+        </p>
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -78,9 +96,10 @@ export default function RSVPList() {
             )}
           </table>
         </div>
+        </>
       )}
 
-      {!loading && guests.length > 0 && (
+      {!loading && !denied && guests.length > 0 && (
         <div className="card mt-6">
           <h2 className="text-saffron-400 font-semibold mb-3 text-sm">
             Invited from phone ({guests.length})
@@ -89,7 +108,7 @@ export default function RSVPList() {
             {guests.map(g => (
               <div key={g.id} className="flex justify-between items-center text-sm">
                 <span className="text-gray-700">{g.name}</span>
-                <span className="text-gray-400">{g.phone}</span>
+                <span className="text-gray-400">{g.displayPhone || g.phone}</span>
               </div>
             ))}
           </div>

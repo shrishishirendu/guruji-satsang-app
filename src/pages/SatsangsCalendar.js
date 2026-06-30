@@ -1,46 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval,
-         getDay, addMonths, subMonths } from 'date-fns';
+         getDay, addMonths, subMonths, isSameMonth } from 'date-fns';
 import AppShell from '../components/AppShell';
-import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
+import { loadVisibleSatsangs } from '../utils/satsangs';
 
 export default function SatsangsCalendar() {
   const navigate = useNavigate();
-  const { logout, userProfile } = useAuth();
+  const { logout, userProfile, currentUser } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  // Map of 'yyyy-MM-dd' -> { public: count, private: count }
-  const [satsangDates, setSatsangDates] = useState(new Map());
+  // Every satsang this user is allowed to see (public + hosted + invited).
+  const [satsangs, setSatsangs] = useState([]);
 
-  // Load all satsang dates in view month
   useEffect(() => {
-    async function fetchDates() {
-      const start = startOfMonth(currentMonth);
-      const end = endOfMonth(currentMonth);
-      const q = query(
-        collection(db, 'satsangs'),
-        where('date', '>=', Timestamp.fromDate(start)),
-        where('date', '<=', Timestamp.fromDate(end)),
-      );
-      const snap = await getDocs(q);
-      const dates = new Map();
-      snap.forEach(d => {
-        const data = d.data();
-        const ts = data.date;
-        if (!ts) return;
-        const key = format(ts.toDate(), 'yyyy-MM-dd');
-        const entry = dates.get(key) || { public: 0, private: 0 };
-        // A booking is "private" unless it's explicitly marked as a public invite
-        if (data.publicInvite) entry.public += 1;
-        else entry.private += 1;
-        dates.set(key, entry);
-      });
-      setSatsangDates(dates);
-    }
-    fetchDates();
-  }, [currentMonth]);
+    loadVisibleSatsangs(currentUser).then(setSatsangs).catch(() => setSatsangs([]));
+  }, [currentUser]);
+
+  // Map of 'yyyy-MM-dd' -> { public: count, private: count } for the open month.
+  const monthDates = useMemo(() => {
+    const dates = new Map();
+    satsangs.forEach(s => {
+      const ts = s.date;
+      if (!ts?.toDate) return;
+      const d = ts.toDate();
+      if (!isSameMonth(d, currentMonth)) return;
+      const key = format(d, 'yyyy-MM-dd');
+      const entry = dates.get(key) || { public: 0, private: 0 };
+      if (s.publicInvite) entry.public += 1;
+      else entry.private += 1;
+      dates.set(key, entry);
+    });
+    return dates;
+  }, [satsangs, currentMonth]);
 
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
   // Monday-first offset (0=Mon … 6=Sun)
@@ -93,15 +85,16 @@ export default function SatsangsCalendar() {
         ➕ Create a Satsang Invite
       </button>
 
-      <p className="text-center text-sm text-gray-600 mb-1">
+      <p className="text-center text-sm text-gray-600 mb-2">
         …or tap a date below to view or add a Satsang
       </p>
-      <p className="text-center text-sm mb-1">
-        <span className="text-green-500 font-semibold">Green</span> dates have public Satsangs,{' '}
-        <span className="text-blue-500 font-semibold">blue</span> are private bookings
-      </p>
-      <p className="text-center text-xs text-gray-400 mb-4">
-        A <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 align-middle" /> dot marks dates with multiple private bookings
+      <p className="text-center text-xs text-gray-500 mb-4 flex items-center justify-center gap-4">
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-blue-500" /> Private
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-green-500" /> Public
+        </span>
       </p>
 
       {/* Month navigator */}
@@ -131,29 +124,27 @@ export default function SatsangsCalendar() {
         {Array(offset).fill(null).map((_, i) => <div key={`e${i}`} />)}
         {days.map(day => {
           const key = format(day, 'yyyy-MM-dd');
-          const entry = satsangDates.get(key);
-          // Private (blue) takes priority when a date has both kinds of bookings
-          const colorClass = entry?.private
-            ? 'text-blue-500 border-blue-200 hover:border-blue-400'
-            : entry?.public
-              ? 'text-green-500 border-green-200 hover:border-green-400'
-              : 'text-gray-700 border-saffron-100 hover:border-saffron-300';
-          // Show a blue dot when a date has more than one private booking
-          const multiplePrivate = (entry?.private || 0) > 1;
+          const entry = monthDates.get(key);
+          const hasEvent = entry && (entry.public > 0 || entry.private > 0);
           return (
             <button
               key={key}
               onClick={() => handleDayClick(day)}
               className={`
                 relative aspect-square flex items-center justify-center rounded-lg border text-sm font-medium
-                transition-all hover:bg-saffron-100
-                ${colorClass}
+                transition-all
+                ${hasEvent
+                  ? 'bg-orange-50 border-orange-200 text-gray-800 hover:border-saffron-400'
+                  : 'bg-white border-saffron-100 text-gray-700 hover:bg-saffron-100 hover:border-saffron-300'}
               `}
             >
-              {multiplePrivate && (
-                <span className="absolute top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-blue-500" />
-              )}
               {format(day, 'd')}
+              {hasEvent && (
+                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                  {entry.private > 0 && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                  {entry.public > 0 && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
+                </span>
+              )}
             </button>
           );
         })}

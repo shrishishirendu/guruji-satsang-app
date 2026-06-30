@@ -15,10 +15,14 @@ export default function ViewInvite() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getDoc(doc(db, 'satsangs', inviteId)).then(snap => {
-      if (snap.exists()) setInvite({ id: snap.id, ...snap.data() });
-      setLoading(false);
-    });
+    getDoc(doc(db, 'satsangs', inviteId))
+      .then(snap => {
+        if (snap.exists()) setInvite({ id: snap.id, ...snap.data() });
+        setLoading(false);
+      })
+      // A private satsang the user isn't invited to is denied by the rules —
+      // leave invite null so it shows "not found" rather than crashing.
+      .catch(() => setLoading(false));
   }, [inviteId]);
 
   if (loading) return <AppShell><p className="text-center text-gray-400 mt-8">Loading…</p></AppShell>;
@@ -102,6 +106,16 @@ export default function ViewInvite() {
       >
         RSVP
       </button>
+
+      {/* Only the host can see who has responded */}
+      {isHost && (
+        <button
+          className="btn-secondary mt-3"
+          onClick={() => navigate(`/invite/${inviteId}/rsvp-list`)}
+        >
+          View RSVP List
+        </button>
+      )}
 
       <button
         className="mt-4 text-sm text-saffron-600 w-full text-center hover:underline"

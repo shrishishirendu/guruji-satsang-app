@@ -2,44 +2,112 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users — can read own profile, create once, update own
+    // ---- Helpers -----------------------------------------------------------
+
+    // The signed-in user's phone number in normalized international form
+    // (e.g. "61404876234"). Matches normalizePhone() in src/utils/contacts.js.
+    // Returns a sentinel when missing so it can never accidentally match a
+    // real guest grant.
+    function myPhone() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid))
+        .data.get('mobileNormalized', '__none__');
+    }
+
+    // True when the signed-in user holds an app-account invite to this satsang.
+    // Invitations use a deterministic id of "<satsangId>_<toUid>" so a single
+    // exists() check works (no querying inside rules).
+    function isInvited(satsangId) {
+      return exists(/databases/$(database)/documents/invitations/$(satsangId + '_' + request.auth.uid));
+    }
+
+    // True when the signed-in user was invited by phone number (guest docs use
+    // a deterministic id of "<satsangId>_<normalizedPhone>").
+    function isPhoneGuest(satsangId) {
+      return exists(/databases/$(database)/documents/guests/$(satsangId + '_' + myPhone()));
+    }
+
+    // True when the user may see a satsang at all.
+    function canSeeSatsang(satsangId) {
+      let s = get(/databases/$(database)/documents/satsangs/$(satsangId)).data;
+      return s.publicInvite == true
+        || request.auth.uid == s.hostUid
+        || isInvited(satsangId)
+        || isPhoneGuest(satsangId);
+    }
+
+    // True when the user may forward/add others to a satsang: the host, anyone
+    // already invited, or anyone for a public satsang.
+    function canForward(satsangId) {
+      let s = get(/databases/$(database)/documents/satsangs/$(satsangId)).data;
+      return s.publicInvite == true
+        || request.auth.uid == s.hostUid
+        || isInvited(satsangId);
+    }
+
+    // ---- Collections -------------------------------------------------------
+
+    // Users — any signed-in user can read profiles (needed to pick sangat);
+    // each user owns their own document.
     match /users/{userId} {
-      allow read: if request.auth != null;
+      allow read:   if request.auth != null;
       allow create: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId;
     }
 
-    // Satsangs — any auth user can read; only creator can update/delete
+    // Satsangs — public ones are visible to everyone; private ones only to the
+    // host and the people invited (by app account or by phone number).
     match /satsangs/{satsangId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if request.auth != null && (
+        resource.data.publicInvite == true ||
+        request.auth.uid == resource.data.hostUid ||
+        isInvited(satsangId) ||
+        isPhoneGuest(satsangId)
+      );
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.hostUid;
       allow update, delete: if request.auth.uid == resource.data.hostUid;
     }
 
-    // RSVPs — any auth user can create; only own RSVP readable/editable
+    // RSVPs — readable only by the responder themselves or the satsang host.
+    // Anyone who can see the satsang may submit their own RSVP.
     match /rsvps/{rsvpId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.uid ||
+        request.auth.uid == get(/databases/$(database)/documents/satsangs/$(resource.data.inviteId)).data.hostUid
+      );
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.uid
+        && canSeeSatsang(request.resource.data.inviteId);
       allow update, delete: if request.auth.uid == resource.data.uid;
     }
 
-    // Invitations — sender or recipient can read
+    // Invitations — the app-account grant. Deterministic id "<inviteId>_<toUid>".
+    // Sender or recipient can read; only the host or someone already invited may
+    // create one (this is what makes forwarding work without leaking access).
     match /invitations/{invId} {
       allow read: if request.auth != null &&
         (request.auth.uid == resource.data.fromUid ||
          request.auth.uid == resource.data.toUid);
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+        && invId == request.resource.data.inviteId + '_' + request.resource.data.toUid
+        && request.auth.uid == request.resource.data.fromUid
+        && canForward(request.resource.data.inviteId);
+      allow delete: if request.auth != null && request.auth.uid == resource.data.fromUid;
     }
 
-    // Guests — phone-directory invitees added by a host.
-    // Any auth user can read (host views them on the RSVP list); only the
-    // host who added a guest can modify or remove them.
+    // Guests — the phone-number grant. Deterministic id "<inviteId>_<phone>".
+    // Readable by the host or whoever added the guest; creatable by the host or
+    // anyone already invited (forwarding to a phone contact).
     match /guests/{guestId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null &&
-        request.auth.uid == request.resource.data.addedByUid;
-      allow update, delete: if request.auth != null &&
-        request.auth.uid == resource.data.addedByUid;
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.addedByUid ||
+        request.auth.uid == get(/databases/$(database)/documents/satsangs/$(resource.data.inviteId)).data.hostUid
+      );
+      allow create: if request.auth != null
+        && guestId == request.resource.data.inviteId + '_' + request.resource.data.phone
+        && request.auth.uid == request.resource.data.addedByUid
+        && canForward(request.resource.data.inviteId);
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.addedByUid;
     }
   }
 }

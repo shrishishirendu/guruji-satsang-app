@@ -10,6 +10,24 @@ import { db } from '../firebase/config';
 import { uploadImage } from '../cloudinary/upload';
 import { useAuth } from '../context/AuthContext';
 
+// Time-picker options: hours 1–12, minutes in quarter-hour steps.
+const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
+const MINUTES = ['00', '15', '30', '45'];
+
+// Coerce stored times (which may be '05' or off-step minutes) onto the picker.
+function normHour(h) {
+  const n = parseInt(h, 10);
+  return Number.isFinite(n) && n >= 1 && n <= 12 ? String(n) : '5';
+}
+function normMin(m) {
+  const n = parseInt(m, 10);
+  if (!Number.isFinite(n)) return '00';
+  return String(Math.min(45, Math.round(n / 15) * 15)).padStart(2, '0');
+}
+function normAmPm(a) {
+  return a === 'PM' ? 'PM' : 'AM';
+}
+
 export default function CreateEditInvite() {
   const { dateStr, inviteId } = useParams();
   const navigate = useNavigate();
@@ -18,8 +36,8 @@ export default function CreateEditInvite() {
 
   const [form, setForm] = useState({
     date:      dateStr || format(new Date(), 'yyyy-MM-dd'),
-    startHour: '05', startMin: '00', startAmPm: 'AM',
-    endHour:   '07', endMin:   '00', endAmPm:   'AM',
+    startHour: '5', startMin: '00', startAmPm: 'AM',
+    endHour:   '7', endMin:   '00', endAmPm:   'AM',
     address:   '',
     rsvpContact: '',
     rsvpBy:    '',
@@ -42,8 +60,8 @@ export default function CreateEditInvite() {
           date: d.date
             ? format(d.date.toDate(), 'yyyy-MM-dd')
             : (dateStr || format(new Date(), 'yyyy-MM-dd')),
-          startHour: sh, startMin: sm, startAmPm: sa,
-          endHour:   eh, endMin:   em, endAmPm:   ea,
+          startHour: normHour(sh), startMin: normMin(sm), startAmPm: normAmPm(sa),
+          endHour:   normHour(eh), endMin:   normMin(em), endAmPm:   normAmPm(ea),
           address:   d.address      || '',
           rsvpContact: d.rsvpContact || '',
           rsvpBy:    d.rsvpBy       || '',
@@ -144,13 +162,17 @@ export default function CreateEditInvite() {
         <div>
           <label className="label">Start Time</label>
           <div className="flex gap-2">
-            <input className="input-field text-center" style={{maxWidth:64}} value={form.startHour}
-              onChange={e => set('startHour', e.target.value)} maxLength={2} placeholder="HH" />
-            <span className="self-center text-gray-400">-</span>
-            <input className="input-field text-center" style={{maxWidth:64}} value={form.startMin}
-              onChange={e => set('startMin', e.target.value)} maxLength={2} placeholder="MM" />
+            <select className="input-field text-center" style={{maxWidth:80}} value={form.startHour}
+              onChange={e => set('startHour', e.target.value)} aria-label="Start hour">
+              {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+            <span className="self-center text-gray-400">:</span>
+            <select className="input-field text-center" style={{maxWidth:80}} value={form.startMin}
+              onChange={e => set('startMin', e.target.value)} aria-label="Start minute">
+              {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
             <select className="input-field" style={{maxWidth:80}} value={form.startAmPm}
-              onChange={e => set('startAmPm', e.target.value)}>
+              onChange={e => set('startAmPm', e.target.value)} aria-label="Start AM/PM">
               <option>AM</option><option>PM</option>
             </select>
           </div>
@@ -160,13 +182,17 @@ export default function CreateEditInvite() {
         <div>
           <label className="label">End Time</label>
           <div className="flex gap-2">
-            <input className="input-field text-center" style={{maxWidth:64}} value={form.endHour}
-              onChange={e => set('endHour', e.target.value)} maxLength={2} placeholder="HH" />
-            <span className="self-center text-gray-400">-</span>
-            <input className="input-field text-center" style={{maxWidth:64}} value={form.endMin}
-              onChange={e => set('endMin', e.target.value)} maxLength={2} placeholder="MM" />
+            <select className="input-field text-center" style={{maxWidth:80}} value={form.endHour}
+              onChange={e => set('endHour', e.target.value)} aria-label="End hour">
+              {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+            <span className="self-center text-gray-400">:</span>
+            <select className="input-field text-center" style={{maxWidth:80}} value={form.endMin}
+              onChange={e => set('endMin', e.target.value)} aria-label="End minute">
+              {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
             <select className="input-field" style={{maxWidth:80}} value={form.endAmPm}
-              onChange={e => set('endAmPm', e.target.value)}>
+              onChange={e => set('endAmPm', e.target.value)} aria-label="End AM/PM">
               <option>AM</option><option>PM</option>
             </select>
           </div>

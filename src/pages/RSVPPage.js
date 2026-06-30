@@ -26,14 +26,12 @@ export default function RSVPPage() {
   async function handleRSVP() {
     setSaving(true);
     try {
-      // Check if already RSVPed
-      const q = query(
-        collection(db, 'rsvps'),
-        where('inviteId', '==', inviteId),
-        where('uid', '==', currentUser.uid),
+      // Already RSVPed? Query only my own RSVPs (single field — no index needed,
+      // and allowed by the rules), then check for this satsang client-side.
+      const existing = await getDocs(
+        query(collection(db, 'rsvps'), where('uid', '==', currentUser.uid))
       );
-      const existing = await getDocs(q);
-      if (!existing.empty) {
+      if (existing.docs.some(d => d.data().inviteId === inviteId)) {
         toast.error("You've already RSVPed to this satsang.");
         setSaving(false);
         return;
@@ -50,8 +48,9 @@ export default function RSVPPage() {
         requestSeva,
         createdAt: Timestamp.now(),
       });
+      // Only the host sees the RSVP list, so send everyone back to the invite.
       toast.success('RSVP confirmed! Jai Guruji 🙏');
-      navigate(`/invite/${inviteId}/rsvp-list`);
+      navigate(`/invite/${inviteId}`);
     } catch (err) {
       console.error(err);
       toast.error('Could not save RSVP. Please try again.');
