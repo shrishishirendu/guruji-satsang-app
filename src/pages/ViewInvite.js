@@ -78,9 +78,12 @@ export default function ViewInvite() {
         <Row label="Booking Type" value={invite.publicInvite ? 'Public' : 'Private'} />
       </div>
 
-      <button className="btn-primary" onClick={handleShare}>
-        📲 Share Invite
-      </button>
+      {/* Only the host can broadcast-share the invite */}
+      {isHost && (
+        <button className="btn-primary" onClick={handleShare}>
+          📲 Share Invite
+        </button>
+      )}
 
       <div className="flex gap-3 mt-3">
         {isHost && (
