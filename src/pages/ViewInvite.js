@@ -5,8 +5,7 @@ import { format } from 'date-fns';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
-// Share Invite temporarily disabled (per request) — re-enable this import with the button below.
-// import { shareInvite } from '../utils/contacts';
+import { shareInvite } from '../utils/contacts';
 
 export default function ViewInvite() {
   const { inviteId } = useParams();
@@ -30,21 +29,20 @@ export default function ViewInvite() {
     ? format(invite.date.toDate(), 'd MMMM yyyy')
     : '—';
 
-  // Share Invite temporarily disabled (per request) — re-enable with the import & button.
-  // function handleShare() {
-  //   const rsvpLink = `${window.location.origin}/invite/${inviteId}/rsvp`;
-  //   shareInvite(
-  //     {
-  //       dateStr,
-  //       startTime: invite.startTime,
-  //       endTime: invite.endTime,
-  //       address: invite.address,
-  //       rsvpBy: invite.rsvpBy,
-  //     },
-  //     rsvpLink,
-  //     invite.hostName,
-  //   );
-  // }
+  function handleShare() {
+    const rsvpLink = `${window.location.origin}/invite/${inviteId}/rsvp`;
+    shareInvite(
+      {
+        dateStr,
+        startTime: invite.startTime,
+        endTime: invite.endTime,
+        address: invite.address,
+        rsvpBy: invite.rsvpBy,
+      },
+      rsvpLink,
+      invite.hostName,
+    );
+  }
 
   function Row({ label, value, multiline }) {
     if (!value) return null;
@@ -76,11 +74,9 @@ export default function ViewInvite() {
         <Row label="Booking Type" value={invite.publicInvite ? 'Public' : 'Private'} />
       </div>
 
-      {/* Share Invite temporarily disabled (per request) — re-enable when ready:
       <button className="btn-primary" onClick={handleShare}>
         📲 Share Invite
       </button>
-      */}
 
       <div className="flex gap-3 mt-3">
         {isHost && (
