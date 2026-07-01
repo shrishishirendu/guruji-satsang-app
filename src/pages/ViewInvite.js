@@ -102,13 +102,15 @@ export default function ViewInvite() {
         </button>
       </div>
 
-      {/* RSVP button visible to all */}
-      <button
-        className="btn-secondary mt-3"
-        onClick={() => navigate(`/invite/${inviteId}/rsvp`)}
-      >
-        RSVP
-      </button>
+      {/* Guests RSVP; the host doesn't RSVP to their own event */}
+      {!isHost && (
+        <button
+          className="btn-secondary mt-3"
+          onClick={() => navigate(`/invite/${inviteId}/rsvp`)}
+        >
+          RSVP
+        </button>
+      )}
 
       {/* Only the host can see who has responded */}
       {isHost && (
