@@ -100,13 +100,6 @@ export default function DayView() {
           + Add another satsang
         </button>
       )}
-
-      <button
-        className="mt-4 text-sm text-saffron-600 w-full text-center hover:underline"
-        onClick={() => navigate('/satsangs')}
-      >
-        ← Back to calendar
-      </button>
     </AppShell>
   );
 }

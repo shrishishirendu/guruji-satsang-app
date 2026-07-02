@@ -8,7 +8,7 @@ import { loadVisibleSatsangs } from '../utils/satsangs';
 
 export default function SatsangsCalendar() {
   const navigate = useNavigate();
-  const { logout, userProfile, currentUser } = useAuth();
+  const { currentUser } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   // Every satsang this user is allowed to see (public + hosted + invited).
   const [satsangs, setSatsangs] = useState([]);
@@ -45,23 +45,6 @@ export default function SatsangsCalendar() {
 
   return (
     <AppShell>
-      {/* Signed-in user + sign out, tucked in the top-right on their own row */}
-      <div className="flex justify-end leading-tight mb-1">
-        <div className="flex flex-col items-end">
-          {userProfile && (
-            <span className="text-sm font-medium text-gray-600">
-              {userProfile.firstName} {userProfile.lastName}
-            </span>
-          )}
-          <button
-            onClick={logout}
-            className="text-xs text-gray-400 hover:text-saffron-600 font-medium"
-          >
-            Sign out
-          </button>
-        </div>
-      </div>
-
       {/* Centered title, matching every other page — sits above the Guru Ji image */}
       <h1 className="page-header mb-2">Satsang Seva</h1>
 

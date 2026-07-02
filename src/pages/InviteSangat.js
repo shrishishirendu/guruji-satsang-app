@@ -13,6 +13,7 @@ import {
   buildInviteMessage, buildWhatsAppLink,
 } from '../utils/contacts';
 import { showError } from '../utils/notify';
+import { formatRsvpBy } from '../utils/dates';
 
 export default function InviteSangat() {
   const { inviteId } = useParams();
@@ -171,7 +172,7 @@ export default function InviteSangat() {
     startTime: invite.startTime,
     endTime: invite.endTime,
     address: invite.address,
-    rsvpBy: invite.rsvpBy,
+    rsvpBy: formatRsvpBy(invite.rsvpBy),
   };
 
   function whatsappLinkFor(guest) {

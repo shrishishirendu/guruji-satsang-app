@@ -6,6 +6,7 @@ import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { shareInvite } from '../utils/contacts';
+import { formatRsvpBy } from '../utils/dates';
 
 export default function ViewInvite() {
   const { inviteId } = useParams();
@@ -45,7 +46,7 @@ export default function ViewInvite() {
         startTime: invite.startTime,
         endTime: invite.endTime,
         address: invite.address,
-        rsvpBy: invite.rsvpBy,
+        rsvpBy: formatRsvpBy(invite.rsvpBy),
       },
       rsvpLink,
       invite.hostName,
@@ -71,7 +72,7 @@ export default function ViewInvite() {
         <Row label="End Time"     value={invite.endTime} />
         <Row label="Address"      value={invite.address} multiline />
         <Row label="RSVP"         value={invite.rsvpContact} multiline />
-        <Row label="RSVP By"      value={invite.rsvpBy} />
+        <Row label="RSVP By"      value={formatRsvpBy(invite.rsvpBy)} />
         <Row label="Instructions" value={invite.instructions} multiline />
         {invite.imageUrl && (
           <div className="flex gap-3 py-2">
@@ -127,13 +128,6 @@ export default function ViewInvite() {
           View RSVP List
         </button>
       )}
-
-      <button
-        className="mt-4 text-sm text-saffron-600 w-full text-center hover:underline"
-        onClick={() => navigate(-1)}
-      >
-        ← Back
-      </button>
     </AppShell>
   );
 }

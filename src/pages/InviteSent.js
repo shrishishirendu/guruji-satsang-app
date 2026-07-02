@@ -27,13 +27,10 @@ export default function InviteSent() {
         <div className="flex flex-col gap-3 mt-8 w-full max-w-xs">
           {/* Let the host keep adding people without hunting back through the app */}
           <button
-            className="btn-secondary"
+            className="btn-primary"
             onClick={() => navigate(`/invite/${inviteId}/invite-sangat`)}
           >
             + Invite more sangat
-          </button>
-          <button className="btn-primary" onClick={() => navigate('/satsangs')}>
-            Home
           </button>
         </div>
       </div>

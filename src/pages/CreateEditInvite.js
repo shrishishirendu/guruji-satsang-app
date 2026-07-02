@@ -215,11 +215,20 @@ export default function CreateEditInvite() {
             placeholder="Deepika Gupta - 04040876234&#10;Rohan Gupta - 0405098432" />
         </div>
 
-        {/* RSVP by */}
+        {/* RSVP by — a date picker, same as the Date field above */}
         <div>
           <label className="label">RSVP By</label>
-          <input className="input-field" value={form.rsvpBy}
-            onChange={e => set('rsvpBy', e.target.value)} placeholder="e.g. 20 February 2024" />
+          <input
+            type="date"
+            className="input-field"
+            value={form.rsvpBy}
+            onChange={e => set('rsvpBy', e.target.value)}
+          />
+          {/^\d{4}-\d{2}-\d{2}$/.test(form.rsvpBy) && (
+            <p className="text-xs text-gray-400 mt-1">
+              {format(parse(form.rsvpBy, 'yyyy-MM-dd', new Date()), 'EEEE, d MMMM yyyy')}
+            </p>
+          )}
         </div>
 
         {/* Instructions */}

@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 
 export default function RSVPList() {
   const { inviteId } = useParams();
-  const navigate = useNavigate();
   const [rsvps, setRsvps] = useState([]);
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,13 +116,6 @@ export default function RSVPList() {
           </p>
         </div>
       )}
-
-      <button
-        className="btn-primary mt-6"
-        onClick={() => navigate('/satsangs')}
-      >
-        Home
-      </button>
     </AppShell>
   );
 }
