@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import AppShell from '../components/AppShell';
 import { useAuth } from '../context/AuthContext';
+import { showError } from '../utils/notify';
 
 export default function Register() {
   const { register } = useAuth();
@@ -19,14 +19,14 @@ export default function Register() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.firstName || !form.lastName || !form.mobile || !form.email || !form.password) {
-      return toast.error('Please fill in all required fields.');
+      return showError('Please fill in all required fields.');
     }
     setLoading(true);
     try {
       await register(form);
       navigate('/registered');
     } catch (err) {
-      toast.error(err.message || 'Registration failed. Please try again.');
+      showError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

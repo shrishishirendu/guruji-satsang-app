@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import AppShell from '../components/AppShell';
 import { useAuth } from '../context/AuthContext';
+import { showError } from '../utils/notify';
 
 export default function ForgotPassword() {
   const { resetPassword } = useAuth();
@@ -14,20 +14,20 @@ export default function ForgotPassword() {
   async function handleSubmit(e) {
     e.preventDefault();
     const trimmed = email.trim();
-    if (!trimmed) return toast.error('Please enter your email.');
+    if (!trimmed) return showError('Please enter your email.');
     setLoading(true);
     try {
       await resetPassword(trimmed);
       setSent(true);
     } catch (err) {
       if (err.code === 'auth/invalid-email') {
-        toast.error('That email address looks invalid.');
+        showError('That email address looks invalid.');
       } else if (err.code === 'auth/user-not-found') {
         // Don't reveal whether an account exists — show the same confirmation.
         setSent(true);
       } else {
         console.error(err);
-        toast.error('Could not send the reset email. Please try again.');
+        showError('Could not send the reset email. Please try again.');
       }
     } finally {
       setLoading(false);

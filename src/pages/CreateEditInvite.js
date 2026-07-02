@@ -9,6 +9,7 @@ import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { uploadImage } from '../cloudinary/upload';
 import { useAuth } from '../context/AuthContext';
+import { showError } from '../utils/notify';
 
 // Time-picker options: hours 1–12, minutes in quarter-hour steps.
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
@@ -81,7 +82,7 @@ export default function CreateEditInvite() {
   async function handleSave(e) {
     e.preventDefault();
     if (!form.address || !form.rsvpContact) {
-      return toast.error('Address and RSVP contact are required.');
+      return showError('Address and RSVP contact are required.');
     }
     setSaving(true);
     try {
@@ -124,7 +125,7 @@ export default function CreateEditInvite() {
       }
     } catch (err) {
       console.error(err);
-      toast.error('Could not save invite. Please try again.');
+      showError('Could not save invite. Please try again.');
     } finally {
       setSaving(false);
     }

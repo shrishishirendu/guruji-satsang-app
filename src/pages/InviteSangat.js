@@ -12,6 +12,7 @@ import {
   isContactPickerSupported, pickContacts, normalizePhone,
   buildInviteMessage, buildWhatsAppLink,
 } from '../utils/contacts';
+import { showError } from '../utils/notify';
 
 export default function InviteSangat() {
   const { inviteId } = useParams();
@@ -103,7 +104,7 @@ export default function InviteSangat() {
   // via a direct URL, so they get a clear message instead of a failed send.
   useEffect(() => {
     if (invite && !(currentUser.uid === invite.hostUid || invite.publicInvite === true)) {
-      toast.error('Only the host can invite others to a private satsang.');
+      showError('Only the host can invite others to a private satsang.');
       navigate(`/invite/${inviteId}`);
     }
   }, [invite, currentUser.uid, inviteId, navigate]);
@@ -120,7 +121,7 @@ export default function InviteSangat() {
 
   function addGuest(name, phone) {
     const raw = (phone || '').trim();
-    if (!raw) return toast.error('A phone number is required.');
+    if (!raw) return showError('A phone number is required.');
     const norm = normalizePhone(raw);
     setGuests(g => {
       // Dedupe by normalized number so "0404…", "+61404…" and "61404…" match.
@@ -158,7 +159,7 @@ export default function InviteSangat() {
   }
 
   function handleManualAdd() {
-    if (!manualPhone.trim()) return toast.error('Enter a phone number.');
+    if (!manualPhone.trim()) return showError('Enter a phone number.');
     addGuest(manualName, manualPhone);
     setManualName('');
     setManualPhone('');
@@ -182,7 +183,7 @@ export default function InviteSangat() {
 
   async function sendInvites() {
     if (selected.size === 0 && guests.length === 0) {
-      return toast.error('Select sangat or add a contact to invite.');
+      return showError('Select sangat or add a contact to invite.');
     }
     // Only send to people who weren't already invited when the page opened, so
     // re-opening to add more people sends just the new ones (accurate count) and
@@ -227,7 +228,7 @@ export default function InviteSangat() {
       navigate(`/invite/${inviteId}/invited`);
     } catch (err) {
       console.error(err);
-      toast.error('Could not send invites. Please try again.');
+      showError('Could not send invites. Please try again.');
     } finally {
       setSending(false);
     }

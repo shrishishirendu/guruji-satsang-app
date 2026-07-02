@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import AppShell from '../components/AppShell';
 import { useAuth } from '../context/AuthContext';
+import { showError } from '../utils/notify';
 
 export default function Login() {
   const { login } = useAuth();
@@ -13,13 +13,13 @@ export default function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!email || !password) return toast.error('Please enter your email and password.');
+    if (!email || !password) return showError('Please enter your email and password.');
     setLoading(true);
     try {
       await login(email, password);
       navigate('/satsangs');
     } catch (err) {
-      toast.error('Incorrect email or password. Please try again.');
+      showError('Incorrect email or password. Please try again.');
     } finally {
       setLoading(false);
     }
