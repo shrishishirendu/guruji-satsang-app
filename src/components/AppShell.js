@@ -42,7 +42,7 @@ export default function AppShell({ children }) {
           {currentUser && onCalendar && (
             <button
               onClick={() => navigate('/')}
-              className="mt-6 text-sm text-saffron-600 w-full text-center hover:underline"
+              className="btn-primary mt-6"
             >
               🏠 Home
             </button>
