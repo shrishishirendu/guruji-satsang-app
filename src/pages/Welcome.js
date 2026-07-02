@@ -9,7 +9,7 @@ export default function Welcome() {
   return (
     <AppShell>
       <h1 className="page-header mt-4">Satsang Seva</h1>
-      <div className="flex flex-col items-center text-center mt-8 gap-6">
+      <div className="flex flex-col items-center text-center mt-6 gap-4">
         {/* Guruji image — file lives in /public/guruji.jpg */}
         <img
           src="/guruji.jpg"
@@ -20,7 +20,7 @@ export default function Welcome() {
           Aum Namah Shivay Shivji Sada Sahay<br />
           Aum Namah Shivay Guru ji Sada Sahay
         </p>
-        <div className="text-gray-600 leading-relaxed space-y-3">
+        <div className="text-gray-600 text-sm leading-relaxed space-y-2">
           <p>
             With Guru Ji's blessings you can now use Guruji's platform to View Satsangs
             on a calendar, send Satsang Invites (Public or Private), RSVP to Satsangs,
@@ -38,14 +38,20 @@ export default function Welcome() {
             Go to Calendar
           </button>
         ) : (
-          <>
-            <button className="btn-primary mt-2" onClick={() => navigate('/register')}>
+          <div className="flex gap-3 w-full mt-2">
+            <button
+              className="btn-primary flex-1 text-sm px-3 py-2.5"
+              onClick={() => navigate('/register')}
+            >
               Get Started
             </button>
-            <button className="btn-secondary" onClick={() => navigate('/login')}>
+            <button
+              className="btn-secondary flex-1 text-sm px-3 py-2.5"
+              onClick={() => navigate('/login')}
+            >
               Sign In
             </button>
-          </>
+          </div>
         )}
       </div>
     </AppShell>
