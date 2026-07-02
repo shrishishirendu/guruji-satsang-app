@@ -58,7 +58,7 @@ export default function SatsangsCalendar() {
       </div>
 
       {/* Guru Ji mantra */}
-      <p className="text-center text-sm text-saffron-600 font-medium leading-relaxed mb-4">
+      <p className="text-center text-sm text-saffron-400 font-bold leading-relaxed mb-4">
         Aum Namah Shivay Shivji Sada Sahay<br />
         Aum Namah Shivay Guru ji Sada Sahay
       </p>
