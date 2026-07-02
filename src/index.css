@@ -19,6 +19,16 @@
   .input-field {
     @apply w-full border-2 border-saffron-200 rounded-xl px-4 py-3 focus:outline-none focus:border-saffron-400 bg-white text-gray-800 placeholder-gray-400 transition-colors;
   }
+  /* iOS Safari gives date/time inputs a native intrinsic width and ignores
+     w-full, so the field overflows the screen on iPhone (looks fine on Android).
+     Stripping the native appearance makes it respect the container width. */
+  input[type="date"].input-field,
+  input[type="time"].input-field {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+  }
   .card {
     @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
   }
