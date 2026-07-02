@@ -31,6 +31,12 @@ export default function InviteSangat() {
 
   const [sending, setSending] = useState(false);
 
+  // Baseline of who was ALREADY invited when this page opened, so re-opening to
+  // add people only sends grants to the newly-added ones (accurate count, no
+  // re-stamping) and we can badge existing invitees as "Invited".
+  const [invitedUids, setInvitedUids] = useState(new Set());
+  const [invitedPhones, setInvitedPhones] = useState(new Set());
+
   const hostName = userProfile
     ? `${userProfile.firstName} ${userProfile.lastName}`
     : '';
@@ -41,11 +47,22 @@ export default function InviteSangat() {
       const list = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(u => u.id !== currentUser.uid);
-      list.sort((a, b) =>
+      // Dedupe by normalized phone so someone who registered more than once (or
+      // shares a number) shows up only once in the sangat list. Users with no
+      // number are all kept — there's no phone to collide on.
+      const seenPhones = new Set();
+      const deduped = list.filter(u => {
+        const key = normalizePhone(u.mobile || '');
+        if (!key) return true;
+        if (seenPhones.has(key)) return false;
+        seenPhones.add(key);
+        return true;
+      });
+      deduped.sort((a, b) =>
         `${a.firstName} ${a.lastName}`.toLowerCase()
           .localeCompare(`${b.firstName} ${b.lastName}`.toLowerCase())
       );
-      setUsers(list);
+      setUsers(deduped);
     });
 
     getDoc(doc(db, 'satsangs', inviteId)).then(snap => {
@@ -60,7 +77,10 @@ export default function InviteSangat() {
           .map(d => d.data())
           .filter(d => d.inviteId === inviteId)
           .map(d => d.toUid);
-        if (already.length) setSelected(new Set(already));
+        if (already.length) {
+          setSelected(new Set(already));
+          setInvitedUids(new Set(already));
+        }
       })
       .catch(() => {});
 
@@ -70,7 +90,10 @@ export default function InviteSangat() {
           .map(d => d.data())
           .filter(d => d.inviteId === inviteId)
           .map(d => ({ name: d.name, phone: d.displayPhone || d.phone }));
-        if (mine.length) setGuests(mine);
+        if (mine.length) {
+          setGuests(mine);
+          setInvitedPhones(new Set(mine.map(g => normalizePhone(g.phone))));
+        }
       })
       .catch(() => {});
   }, [currentUser.uid, inviteId]);
@@ -161,12 +184,24 @@ export default function InviteSangat() {
     if (selected.size === 0 && guests.length === 0) {
       return toast.error('Select sangat or add a contact to invite.');
     }
+    // Only send to people who weren't already invited when the page opened, so
+    // re-opening to add more people sends just the new ones (accurate count) and
+    // updates the existing invite rather than re-stamping everyone.
+    const newUids = [...selected].filter(uid => !invitedUids.has(uid));
+    const newGuests = guests
+      .map(g => ({ ...g, norm: normalizePhone(g.phone) }))
+      .filter(g => g.norm && !invitedPhones.has(g.norm));
+
+    if (newUids.length === 0 && newGuests.length === 0) {
+      return toast('Everyone here is already invited — add someone new to update the invite.', { icon: 'ℹ️' });
+    }
+
     setSending(true);
     try {
       // Deterministic ids ("<inviteId>_<uid>" / "<inviteId>_<phone>") make
       // re-sending idempotent — no duplicate invites (#6) — and act as the
       // access grant the security rules check.
-      const appUserWrites = [...selected].map(uid =>
+      const appUserWrites = newUids.map(uid =>
         setDoc(doc(db, 'invitations', `${inviteId}_${uid}`), {
           inviteId,
           toUid: uid,
@@ -175,22 +210,19 @@ export default function InviteSangat() {
           status: 'sent',
         })
       );
-      const guestWrites = guests
-        .map(g => ({ ...g, norm: normalizePhone(g.phone) }))
-        .filter(g => g.norm)
-        .map(g =>
-          setDoc(doc(db, 'guests', `${inviteId}_${g.norm}`), {
-            inviteId,
-            name: g.name,
-            phone: g.norm,
-            displayPhone: g.phone,
-            addedByUid: currentUser.uid,
-            source: 'phone-directory',
-            invitedAt: Timestamp.now(),
-          })
-        );
+      const guestWrites = newGuests.map(g =>
+        setDoc(doc(db, 'guests', `${inviteId}_${g.norm}`), {
+          inviteId,
+          name: g.name,
+          phone: g.norm,
+          displayPhone: g.phone,
+          addedByUid: currentUser.uid,
+          source: 'phone-directory',
+          invitedAt: Timestamp.now(),
+        })
+      );
       await Promise.all([...appUserWrites, ...guestWrites]);
-      const total = selected.size + guestWrites.length;
+      const total = newUids.length + newGuests.length;
       toast.success(`${total} invite${total === 1 ? '' : 's'} sent!`);
       navigate(`/invite/${inviteId}/invited`);
     } catch (err) {
@@ -206,6 +238,17 @@ export default function InviteSangat() {
     (u.mobile || '').includes(search)
   );
 
+  // How many people are newly added vs. already invited — drives the Send count
+  // so the host sees exactly how many new invites will go out.
+  const isNewGuest = g => {
+    const n = normalizePhone(g.phone);
+    return n && !invitedPhones.has(n);
+  };
+  const newCount =
+    [...selected].filter(uid => !invitedUids.has(uid)).length +
+    guests.filter(isNewGuest).length;
+  const hasExisting = invitedUids.size > 0 || invitedPhones.size > 0;
+
   return (
     <AppShell>
       <h1 className="page-header mt-4">Satsang Seva</h1>
@@ -219,9 +262,16 @@ export default function InviteSangat() {
         onChange={e => setSearch(e.target.value)}
       />
 
-      <p className="text-sm text-gray-500 mb-3">
+      <p className="text-sm text-gray-500 mb-1">
         {selected.size} selected · {users.length} registered sangat
       </p>
+      {hasExisting && (
+        <p className="text-xs text-gray-400 mb-3">
+          People already invited are marked{' '}
+          <span className="text-green-700 font-medium">Invited</span>. Select or add anyone
+          new, then Send — only the new people are notified.
+        </p>
+      )}
 
       <div className="flex flex-col gap-2 max-h-72 overflow-y-auto mb-6">
         {filtered.map(u => (
@@ -245,6 +295,11 @@ export default function InviteSangat() {
               </p>
               <p className="text-xs text-gray-400">{u.mobile || u.email}</p>
             </div>
+            {invitedUids.has(u.id) && (
+              <span className="ml-auto text-[11px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full shrink-0">
+                Invited
+              </span>
+            )}
           </label>
         ))}
         {filtered.length === 0 && (
@@ -302,6 +357,11 @@ export default function InviteSangat() {
                 <p className="font-semibold text-gray-800 text-sm truncate">{g.name}</p>
                 <p className="text-xs text-gray-400">{g.phone}</p>
               </div>
+              {invitedPhones.has(normalizePhone(g.phone)) && (
+                <span className="text-[11px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full shrink-0">
+                  Invited
+                </span>
+              )}
               <a
                 href={whatsappLinkFor(g)}
                 target="_blank"
@@ -328,8 +388,12 @@ export default function InviteSangat() {
         their invite &amp; RSVP link.
       </p>
 
-      <button className="btn-primary" onClick={sendInvites} disabled={sending}>
-        {sending ? 'Sending…' : `Send Invites (${selected.size + guests.length})`}
+      <button className="btn-primary" onClick={sendInvites} disabled={sending || newCount === 0}>
+        {sending
+          ? 'Sending…'
+          : hasExisting
+            ? `Send ${newCount} New Invite${newCount === 1 ? '' : 's'}`
+            : `Send Invites (${newCount})`}
       </button>
     </AppShell>
   );
