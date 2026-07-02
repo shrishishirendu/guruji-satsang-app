@@ -45,9 +45,9 @@ export default function SatsangsCalendar() {
 
   return (
     <AppShell>
-      <div className="flex items-start justify-between mb-1">
-        <h1 className="page-header mb-0">Satsang Seva</h1>
-        <div className="flex flex-col items-end leading-tight">
+      {/* Signed-in user + sign out, tucked in the top-right on their own row */}
+      <div className="flex justify-end leading-tight mb-1">
+        <div className="flex flex-col items-end">
           {userProfile && (
             <span className="text-sm font-medium text-gray-600">
               {userProfile.firstName} {userProfile.lastName}
@@ -61,6 +61,9 @@ export default function SatsangsCalendar() {
           </button>
         </div>
       </div>
+
+      {/* Centered title, matching every other page — sits above the Guru Ji image */}
+      <h1 className="page-header mb-2">Satsang Seva</h1>
 
       {/* Guru Ji sticker — file lives in /public/guruji.jpg */}
       <div className="flex justify-center mb-2 mt-2">
