@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/AppShell';
+import { useAuth } from '../context/AuthContext';
 
 export default function Welcome() {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   return (
     <AppShell>
       <h1 className="page-header mt-4">Satsang Seva</h1>
@@ -31,12 +33,20 @@ export default function Welcome() {
             Private at any time.
           </p>
         </div>
-        <button className="btn-primary mt-2" onClick={() => navigate('/register')}>
-          Get Started
-        </button>
-        <button className="btn-secondary" onClick={() => navigate('/login')}>
-          Sign In
-        </button>
+        {currentUser ? (
+          <button className="btn-primary mt-2" onClick={() => navigate('/satsangs')}>
+            Go to Calendar
+          </button>
+        ) : (
+          <>
+            <button className="btn-primary mt-2" onClick={() => navigate('/register')}>
+              Get Started
+            </button>
+            <button className="btn-secondary" onClick={() => navigate('/login')}>
+              Sign In
+            </button>
+          </>
+        )}
       </div>
     </AppShell>
   );

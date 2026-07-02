@@ -7,6 +7,7 @@ export default function AppShell({ children }) {
   const location = useLocation();
   const { currentUser, userProfile, logout } = useAuth();
   const onCalendar = location.pathname === '/satsangs';
+  const onHome = location.pathname === '/';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -36,8 +37,17 @@ export default function AppShell({ children }) {
 
           {children}
 
-          {/* Back to calendar — on every logged-in page except the calendar itself */}
-          {currentUser && !onCalendar && (
+          {/* Bottom nav: the calendar links Home; every other logged-in page
+              links back to the calendar. Home has its own buttons. */}
+          {currentUser && onCalendar && (
+            <button
+              onClick={() => navigate('/')}
+              className="mt-6 text-sm text-saffron-600 w-full text-center hover:underline"
+            >
+              🏠 Home
+            </button>
+          )}
+          {currentUser && !onCalendar && !onHome && (
             <button
               onClick={() => navigate('/satsangs')}
               className="mt-6 text-sm text-saffron-600 w-full text-center hover:underline"
