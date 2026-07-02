@@ -35,13 +35,13 @@ service cloud.firestore {
         || isPhoneGuest(satsangId);
     }
 
-    // True when the user may forward/add others to a satsang: the host, anyone
-    // already invited, or anyone for a public satsang.
+    // True when the user may forward/add others to a satsang. For a PRIVATE
+    // satsang only the host may invite — an invitee cannot pass access on. A
+    // PUBLIC satsang may be forwarded by anyone who can see it.
     function canForward(satsangId) {
       let s = get(/databases/$(database)/documents/satsangs/$(satsangId)).data;
       return s.publicInvite == true
-        || request.auth.uid == s.hostUid
-        || isInvited(satsangId);
+        || request.auth.uid == s.hostUid;
     }
 
     // ---- Collections -------------------------------------------------------

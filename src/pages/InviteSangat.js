@@ -75,6 +75,16 @@ export default function InviteSangat() {
       .catch(() => {});
   }, [currentUser.uid, inviteId]);
 
+  // Guard: for a private satsang only the host may invite others (mirrors
+  // canForward() in firestore.rules). Blocks a non-host who reaches this page
+  // via a direct URL, so they get a clear message instead of a failed send.
+  useEffect(() => {
+    if (invite && !(currentUser.uid === invite.hostUid || invite.publicInvite === true)) {
+      toast.error('Only the host can invite others to a private satsang.');
+      navigate(`/invite/${inviteId}`);
+    }
+  }, [invite, currentUser.uid, inviteId, navigate]);
+
   function toggleUser(id) {
     setSelected(s => {
       const next = new Set(s);

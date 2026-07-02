@@ -29,6 +29,10 @@ export default function ViewInvite() {
   if (!invite)  return <AppShell><p className="text-center text-gray-400 mt-8">Invite not found.</p></AppShell>;
 
   const isHost = currentUser?.uid === invite.hostUid;
+  // Who may invite others: the host always; for a private satsang only the host,
+  // but a public satsang may be forwarded by anyone who can see it. Mirrors
+  // canForward() in firestore.rules.
+  const canInvite = isHost || invite.publicInvite === true;
   const dateStr = invite.date
     ? format(invite.date.toDate(), 'd MMMM yyyy')
     : '—';
@@ -85,22 +89,24 @@ export default function ViewInvite() {
         </button>
       )}
 
-      <div className="flex gap-3 mt-3">
-        {isHost && (
+      {canInvite && (
+        <div className="flex gap-3 mt-3">
+          {isHost && (
+            <button
+              className="btn-secondary flex-1"
+              onClick={() => navigate(`/edit-invite/${inviteId}`)}
+            >
+              Edit
+            </button>
+          )}
           <button
             className="btn-secondary flex-1"
-            onClick={() => navigate(`/edit-invite/${inviteId}`)}
+            onClick={() => navigate(`/invite/${inviteId}/invite-sangat`)}
           >
-            Edit
+            Invite Sangat
           </button>
-        )}
-        <button
-          className="btn-secondary flex-1"
-          onClick={() => navigate(`/invite/${inviteId}/invite-sangat`)}
-        >
-          Invite Sangat
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* Guests RSVP; the host doesn't RSVP to their own event */}
       {!isHost && (
