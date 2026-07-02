@@ -81,7 +81,13 @@ export default function CreateEditInvite() {
 
   async function handleSave(e) {
     e.preventDefault();
-    if (!form.address || !form.rsvpContact) {
+    if (!form.suburb.trim()) {
+      return showError('Suburb / Location name is required.');
+    }
+    if (!form.startHour) {
+      return showError('Start Time is required.');
+    }
+    if (!form.address.trim() || !form.rsvpContact.trim()) {
       return showError('Address and RSVP contact are required.');
     }
     setSaving(true);
@@ -138,7 +144,7 @@ export default function CreateEditInvite() {
 
         {/* Date — editable, so you can pick any day without going back to the calendar */}
         <div>
-          <label className="label">Date</label>
+          <label className="label">Satsang Date</label>
           <input
             type="date"
             className="input-field"
@@ -154,14 +160,14 @@ export default function CreateEditInvite() {
 
         {/* Suburb */}
         <div>
-          <label className="label">Suburb / Location name</label>
+          <label className="label">Suburb / Location name*</label>
           <input className="input-field" value={form.suburb}
             onChange={e => set('suburb', e.target.value)} placeholder="e.g. Castle Hill" />
         </div>
 
         {/* Start time */}
         <div>
-          <label className="label">Start Time</label>
+          <label className="label">Start Time*</label>
           <div className="flex items-center gap-2">
             <select className="input-field flex-1 min-w-0 px-2 text-center" value={form.startHour}
               onChange={e => set('startHour', e.target.value)} aria-label="Start hour">
