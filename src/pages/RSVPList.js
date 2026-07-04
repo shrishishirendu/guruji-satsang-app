@@ -4,24 +4,21 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
+import { normalizePhone } from '../utils/contacts';
 
 export default function RSVPList() {
   const { inviteId } = useParams();
   const { currentUser } = useAuth();
-  const [rsvps, setRsvps] = useState([]);
-  const [guests, setGuests] = useState([]);
-  const [appInvitees, setAppInvitees] = useState([]);
+  const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        // The rules only let the satsang's host read these, so a non-host
-        // query is rejected — show an access message instead of crashing.
-        // The invitations query is scoped to fromUid == me (the only way the
-        // rules let a host read them), so it counts app-members THIS host
-        // invited; re-invites a guest forwarded on aren't host-readable.
+        // Host-only reads (the rules reject a non-host, which we surface as a
+        // message). Invitations are scoped to fromUid == me — the only ones the
+        // rules let a host read.
         const reads = [
           getDocs(query(collection(db, 'rsvps'), where('inviteId', '==', inviteId))),
           getDocs(query(collection(db, 'guests'), where('inviteId', '==', inviteId))),
@@ -30,37 +27,97 @@ export default function RSVPList() {
           reads.push(getDocs(query(collection(db, 'invitations'), where('fromUid', '==', currentUser.uid))));
         }
         const [rsvpSnap, guestSnap, inviteSnap] = await Promise.all(reads);
-        const rows = rsvpSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        // Sort by creation time client-side (avoids needing a composite index)
-        rows.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
-        setRsvps(rows);
 
+        const rsvpRows = rsvpSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const guestRows = guestSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        guestRows.sort((a, b) => (a.invitedAt?.toMillis?.() || 0) - (b.invitedAt?.toMillis?.() || 0));
-        setGuests(guestRows);
+        const inviteDocs = (inviteSnap?.docs || [])
+          .map(d => d.data())
+          .filter(d => d.inviteId === inviteId);
 
-        // App-members this host invited to this satsang (dedupe by toUid), with
-        // names resolved from their profiles so the host sees WHO, not just how
-        // many. Only read the directory when there's at least one to name.
-        const appUids = [...new Set(
-          (inviteSnap?.docs || [])
-            .map(d => d.data())
-            .filter(d => d.inviteId === inviteId)
-            .map(d => d.toUid)
-        )];
-        let appList = [];
-        if (appUids.length) {
+        // Resolve names + normalized phones for everyone we might show, so we can
+        // (a) name app-member invitees and (b) recognise a phone guest who has
+        // since registered (their number matches a user's) and fold them in.
+        const usersById = {};
+        const uidByPhone = {};
+        if (inviteDocs.length || rsvpRows.length || guestRows.length) {
           const usersSnap = await getDocs(collection(db, 'users'));
-          const nameByUid = {};
           usersSnap.docs.forEach(u => {
             const d = u.data();
-            nameByUid[u.id] = `${d.firstName || ''} ${d.lastName || ''}`.trim();
+            const name = `${d.firstName || ''} ${d.lastName || ''}`.trim();
+            const phone = d.mobileNormalized || normalizePhone(d.mobile || '');
+            usersById[u.id] = { name, phone };
+            if (phone) uidByPhone[phone] = u.id;
           });
-          appList = appUids
-            .map(uid => ({ uid, name: nameByUid[uid] || 'Sangat member' }))
-            .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
         }
-        setAppInvitees(appList);
+
+        const rsvpByUid = {};
+        rsvpRows.forEach(r => { if (r.uid) rsvpByUid[r.uid] = r; });
+
+        // One row per person, keyed by uid when registered else by phone.
+        const peopleMap = new Map();
+        const upsert = (key, data) => peopleMap.set(key, { ...(peopleMap.get(key) || {}), ...data });
+
+        // 1. App-member invitees (from invitations).
+        inviteDocs.forEach(d => {
+          const prof = usersById[d.toUid] || {};
+          upsert(d.toUid, {
+            key: d.toUid, uid: d.toUid,
+            name: prof.name || 'Sangat member', phone: prof.phone || '',
+            channel: 'app',
+          });
+        });
+
+        // 2. Phone/WhatsApp guests — folded into a registered user's row when
+        //    their number now belongs to one ("back on the sangat list"),
+        //    otherwise shown as a not-yet-registered phone invite.
+        guestRows.forEach(g => {
+          const phone = g.phone || normalizePhone(g.displayPhone || '');
+          const registeredUid = phone && uidByPhone[phone];
+          if (registeredUid) {
+            const prof = usersById[registeredUid] || {};
+            upsert(registeredUid, {
+              key: registeredUid, uid: registeredUid,
+              name: prof.name || g.name, phone, channel: 'app',
+            });
+          } else {
+            upsert(`phone:${phone}`, {
+              key: `phone:${phone}`, name: g.name, phone,
+              displayPhone: g.displayPhone || g.phone, channel: 'phone',
+            });
+          }
+        });
+
+        // 3. Any responders not already listed (e.g. a public-link walk-in).
+        rsvpRows.forEach(r => {
+          if (r.uid && !peopleMap.has(r.uid)) {
+            const prof = usersById[r.uid] || {};
+            upsert(r.uid, {
+              key: r.uid, uid: r.uid,
+              name: r.name || prof.name || 'Sangat member', phone: prof.phone || '',
+              channel: 'app',
+            });
+          }
+        });
+
+        // Attach each person's RSVP numbers (matched by uid).
+        const rows = [...peopleMap.values()].map(p => {
+          const r = p.uid ? rsvpByUid[p.uid] : null;
+          return {
+            ...p,
+            responded: !!r,
+            adults: r?.adults || 0,
+            children: r?.children || 0,
+            requestSeva: !!r?.requestSeva,
+          };
+        });
+
+        // Registered/app members first, then phone invitees; alphabetical within.
+        rows.sort((a, b) =>
+          (a.channel === 'phone' ? 1 : 0) - (b.channel === 'phone' ? 1 : 0) ||
+          a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        );
+
+        setPeople(rows);
       } catch (err) {
         console.warn('RSVP list not accessible:', err);
         setDenied(true);
@@ -71,9 +128,11 @@ export default function RSVPList() {
     load();
   }, [inviteId, currentUser]);
 
-  const totalAdults   = rsvps.reduce((s, r) => s + (r.adults   || 0), 0);
-  const totalChildren = rsvps.reduce((s, r) => s + (r.children || 0), 0);
-  const invitedTotal  = guests.length + appInvitees.length;
+  const totalAdults   = people.reduce((s, p) => s + (p.adults   || 0), 0);
+  const totalChildren = people.reduce((s, p) => s + (p.children || 0), 0);
+  const responded     = people.filter(p => p.responded).length;
+  const anyResponded  = responded > 0;
+  const anyPhone      = people.some(p => p.channel === 'phone');
 
   return (
     <AppShell>
@@ -90,11 +149,16 @@ export default function RSVPList() {
       {!loading && !denied && (
         <>
         <p className="text-sm text-gray-500 mb-1">
-          {invitedTotal} Invited · {rsvps.length} Response{rsvps.length === 1 ? '' : 's'} · {totalAdults + totalChildren} Attending
+          {people.length} Invited · {responded} Response{responded === 1 ? '' : 's'} · {totalAdults + totalChildren} Attending
         </p>
-        <p className="text-xs text-gray-400 mb-2">
+        <p className="text-xs text-gray-400 mb-1">
           A = Adults · C = Children · S = Seva
         </p>
+        {anyPhone && (
+          <p className="text-xs text-blue-500 mb-2">
+            Names in blue were invited via WhatsApp / phone and haven’t registered yet.
+          </p>
+        )}
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -115,21 +179,28 @@ export default function RSVPList() {
               </tr>
             </thead>
             <tbody>
-              {rsvps.map(r => (
-                <tr key={r.id} className="border-t border-gray-50">
-                  <td className="py-2 pr-3 text-gray-700">{r.name}</td>
-                  <td className="py-2 px-3 text-center text-gray-700">{r.adults || ''}</td>
-                  <td className="py-2 px-3 text-center text-gray-700">{r.children || ''}</td>
-                  <td className="py-2 pl-3 text-center text-gray-700">{r.requestSeva ? 'Y' : ''}</td>
+              {people.map(p => (
+                <tr key={p.key} className="border-t border-gray-50">
+                  <td className="py-2 pr-3">
+                    <span className={p.channel === 'phone' ? 'text-blue-600' : 'text-gray-700'}>
+                      {p.name}
+                    </span>
+                    {p.channel === 'phone' && p.displayPhone && (
+                      <span className="text-blue-400"> ({p.displayPhone})</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-3 text-center text-gray-700">{p.adults || ''}</td>
+                  <td className="py-2 px-3 text-center text-gray-700">{p.children || ''}</td>
+                  <td className="py-2 pl-3 text-center text-gray-700">{p.requestSeva ? 'Y' : ''}</td>
                 </tr>
               ))}
-              {rsvps.length === 0 && (
+              {people.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-4 text-center text-gray-400">No RSVPs yet</td>
+                  <td colSpan={4} className="py-4 text-center text-gray-400">No one invited yet</td>
                 </tr>
               )}
             </tbody>
-            {rsvps.length > 0 && (
+            {anyResponded && (
               <tfoot>
                 <tr className="border-t-2 border-saffron-100">
                   <td className="pt-3 font-bold text-saffron-400">Total</td>
@@ -142,41 +213,6 @@ export default function RSVPList() {
           </table>
         </div>
         </>
-      )}
-
-      {!loading && !denied && appInvitees.length > 0 && (
-        <div className="card mt-6">
-          <h2 className="text-saffron-400 font-semibold mb-3 text-sm">
-            Invited via Invite Sangat — app members ({appInvitees.length})
-          </h2>
-          <div className="flex flex-col gap-2">
-            {appInvitees.map(a => (
-              <div key={a.uid} className="text-sm text-gray-700">{a.name}</div>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-3">
-            Registered sangat you invited from the app — they see this satsang on their calendar and appear in the table above once they RSVP.
-          </p>
-        </div>
-      )}
-
-      {!loading && !denied && guests.length > 0 && (
-        <div className="card mt-6">
-          <h2 className="text-saffron-400 font-semibold mb-3 text-sm">
-            Invited via WhatsApp / phone ({guests.length})
-          </h2>
-          <div className="flex flex-col gap-2">
-            {guests.map(g => (
-              <div key={g.id} className="flex justify-between items-center text-sm">
-                <span className="text-gray-700">{g.name}</span>
-                <span className="text-gray-400">{g.displayPhone || g.phone}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-3">
-            These guests were invited via WhatsApp. They’ll appear in the table above once they RSVP.
-          </p>
-        </div>
       )}
     </AppShell>
   );
