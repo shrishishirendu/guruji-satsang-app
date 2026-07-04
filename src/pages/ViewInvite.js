@@ -141,7 +141,7 @@ export default function ViewInvite() {
             className="btn-secondary flex-1 px-3 text-sm whitespace-nowrap"
             onClick={() => navigate(`/invite/${inviteId}/invite-sangat`)}
           >
-            Invite registered Sangat
+            Invite Registered Sangat
           </button>
         </div>
       )}
@@ -152,7 +152,7 @@ export default function ViewInvite() {
       {isHost && (
         <>
           <button className="btn-secondary mt-3" onClick={() => setShareOpen(o => !o)}>
-            Share invite with phone contacts
+            Invite Unregistered Sangat
           </button>
           {shareOpen && (
             <div className="card mt-3">
