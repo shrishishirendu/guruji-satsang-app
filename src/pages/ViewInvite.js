@@ -123,13 +123,35 @@ export default function ViewInvite() {
         <Row label="Booking Type" value={invite.publicInvite ? 'Public' : 'Private'} />
       </div>
 
-      {/* Only the host can share the invite. Sharing records the recipient (by
-          mobile) so they're saved to the invite list and can see a private
-          satsang — a blind share sheet can't grant that. */}
+      {/* Row 1: Edit + Invite registered Sangat, kept on one line — Edit is
+          sized to its text so the longer label gets the remaining width, and a
+          slightly smaller font keeps both un-wrapped even on small iPhones. */}
+      {canInvite && (
+        <div className="flex gap-3">
+          {isHost && (
+            <button
+              className="btn-secondary flex-none px-4 text-sm"
+              onClick={() => navigate(`/edit-invite/${inviteId}`)}
+            >
+              Edit
+            </button>
+          )}
+          <button
+            className="btn-secondary flex-1 px-3 text-sm whitespace-nowrap"
+            onClick={() => navigate(`/invite/${inviteId}/invite-sangat`)}
+          >
+            Invite registered Sangat
+          </button>
+        </div>
+      )}
+
+      {/* Row 2: host shares to a phone contact — records the recipient (see
+          recordAndShare) before opening the share sheet. Same outline style as
+          the other buttons, no saffron fill. */}
       {isHost && (
         <>
-          <button className="btn-primary" onClick={() => setShareOpen(o => !o)}>
-            📲 Share Invite
+          <button className="btn-secondary mt-3" onClick={() => setShareOpen(o => !o)}>
+            Share invite with phone contacts
           </button>
           {shareOpen && (
             <div className="card mt-3">
@@ -171,25 +193,6 @@ export default function ViewInvite() {
         </>
       )}
 
-      {canInvite && (
-        <div className="flex gap-3 mt-3">
-          {isHost && (
-            <button
-              className="btn-secondary flex-1"
-              onClick={() => navigate(`/edit-invite/${inviteId}`)}
-            >
-              Edit
-            </button>
-          )}
-          <button
-            className="btn-secondary flex-1"
-            onClick={() => navigate(`/invite/${inviteId}/invite-sangat`)}
-          >
-            Invite Sangat
-          </button>
-        </div>
-      )}
-
       {/* Guests RSVP; the host doesn't RSVP to their own event */}
       {!isHost && (
         <button
@@ -200,7 +203,7 @@ export default function ViewInvite() {
         </button>
       )}
 
-      {/* Only the host can see who has responded */}
+      {/* Row 3: only the host can see who has responded */}
       {isHost && (
         <button
           className="btn-secondary mt-3"
