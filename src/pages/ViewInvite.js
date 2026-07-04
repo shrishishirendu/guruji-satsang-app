@@ -151,7 +151,7 @@ export default function ViewInvite() {
           the other buttons, no saffron fill. */}
       {isHost && (
         <>
-          <button className="btn-secondary mt-3" onClick={() => setShareOpen(o => !o)}>
+          <button className="btn-secondary text-sm mt-3" onClick={() => setShareOpen(o => !o)}>
             Invite Unregistered Sangat
           </button>
           {shareOpen && (
@@ -197,7 +197,7 @@ export default function ViewInvite() {
       {/* Guests RSVP; the host doesn't RSVP to their own event */}
       {!isHost && (
         <button
-          className="btn-secondary mt-3"
+          className="btn-secondary text-sm mt-3"
           onClick={() => navigate(`/invite/${inviteId}/rsvp`)}
         >
           RSVP
@@ -207,7 +207,7 @@ export default function ViewInvite() {
       {/* Row 3: only the host can see who has responded */}
       {isHost && (
         <button
-          className="btn-secondary mt-3"
+          className="btn-secondary text-sm mt-3"
           onClick={() => navigate(`/invite/${inviteId}/rsvp-list`)}
         >
           View Invite list &amp; RSVP
