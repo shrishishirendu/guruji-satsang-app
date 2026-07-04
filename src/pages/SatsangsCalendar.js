@@ -8,14 +8,16 @@ import { loadVisibleSatsangs } from '../utils/satsangs';
 
 export default function SatsangsCalendar() {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  // Every satsang this user is allowed to see (public + hosted + invited).
+  // Every satsang this user is allowed to see (public + hosted + invited + phone).
   const [satsangs, setSatsangs] = useState([]);
 
   useEffect(() => {
-    loadVisibleSatsangs(currentUser).then(setSatsangs).catch(() => setSatsangs([]));
-  }, [currentUser]);
+    loadVisibleSatsangs(currentUser, userProfile?.mobileNormalized)
+      .then(setSatsangs)
+      .catch(() => setSatsangs([]));
+  }, [currentUser, userProfile]);
 
   // Map of 'yyyy-MM-dd' -> { public: count, private: count } for the open month.
   const monthDates = useMemo(() => {

@@ -8,7 +8,7 @@ import { loadVisibleSatsangs } from '../utils/satsangs';
 export default function DayView() {
   const { dateStr } = useParams(); // yyyy-MM-dd
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [satsangs, setSatsangs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,13 +20,13 @@ export default function DayView() {
     async function load() {
       setLoading(true);
       // Only satsangs this user may see; filter to the day client-side.
-      const visible = await loadVisibleSatsangs(currentUser);
+      const visible = await loadVisibleSatsangs(currentUser, userProfile?.mobileNormalized);
       setSatsangs(visible.filter(s => s.date?.toDate && isSameDay(s.date.toDate(), day)));
       setLoading(false);
     }
     load();
   // eslint-disable-next-line
-  }, [dateStr, currentUser]);
+  }, [dateStr, currentUser, userProfile]);
 
   function prevDay() {
     navigate(`/satsangs/${format(subDays(day, 1), 'yyyy-MM-dd')}`);

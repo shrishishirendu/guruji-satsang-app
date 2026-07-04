@@ -101,7 +101,11 @@ service cloud.firestore {
     match /guests/{guestId} {
       allow read: if request.auth != null && (
         request.auth.uid == resource.data.addedByUid ||
-        request.auth.uid == get(/databases/$(database)/documents/satsangs/$(resource.data.inviteId)).data.hostUid
+        request.auth.uid == get(/databases/$(database)/documents/satsangs/$(resource.data.inviteId)).data.hostUid ||
+        // The invited guest themselves, once registered: their normalized number
+        // matches the grant, so they can list their own phone invites (needed to
+        // surface them on the calendar, not just via the direct link).
+        resource.data.phone == myPhone()
       );
       allow create: if request.auth != null
         && guestId == request.resource.data.inviteId + '_' + request.resource.data.phone
