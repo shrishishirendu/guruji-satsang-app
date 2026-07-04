@@ -52,6 +52,7 @@ service cloud.firestore {
       allow read:   if request.auth != null;
       allow create: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId;
+      allow delete: if request.auth.uid == userId;
     }
 
     // Satsangs — public ones are visible to everyone; private ones only to the
