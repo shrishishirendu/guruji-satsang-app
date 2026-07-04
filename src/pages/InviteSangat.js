@@ -240,6 +240,15 @@ export default function InviteSangat() {
     (u.mobile || '').includes(search)
   );
 
+  // A phone/WhatsApp guest who has since registered now appears in the
+  // Registered Sangat list above (matched by number), so: (a) drop them from the
+  // phone list to avoid showing them in both places, and (b) still badge them
+  // "Invited" up top since they were already invited by phone.
+  const phoneOf = u => u.mobileNormalized || normalizePhone(u.mobile || '');
+  const registeredPhones = new Set(users.map(phoneOf).filter(Boolean));
+  const visibleGuests = guests.filter(g => !registeredPhones.has(normalizePhone(g.phone)));
+  const isUserInvited = u => invitedUids.has(u.id) || invitedPhones.has(phoneOf(u));
+
   // How many people are newly added vs. already invited — drives the Send count
   // so the host sees exactly how many new invites will go out.
   const isNewGuest = g => {
@@ -299,7 +308,7 @@ export default function InviteSangat() {
                 )}
               </p>
             </div>
-            {invitedUids.has(u.id) && (
+            {isUserInvited(u) && (
               <span className="ml-auto text-[11px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full shrink-0">
                 Invited
               </span>
@@ -349,10 +358,10 @@ export default function InviteSangat() {
         </button>
       </div>
 
-      {/* Guest list */}
-      {guests.length > 0 && (
+      {/* Guest list — registered guests are hidden here (they show up top) */}
+      {visibleGuests.length > 0 && (
         <div className="flex flex-col gap-2 max-h-72 overflow-y-auto mb-4">
-          {guests.map(g => (
+          {visibleGuests.map(g => (
             <div
               key={g.phone}
               className="flex items-center gap-3 p-3 rounded-xl border-2 border-blue-100 bg-blue-50"
