@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
-import { shareInvite } from '../utils/contacts';
+import { shareInvite, normalizePhone } from '../utils/contacts';
+import { showError } from '../utils/notify';
 import { formatRsvpBy } from '../utils/dates';
 
 export default function ViewInvite() {
@@ -14,6 +16,10 @@ export default function ViewInvite() {
   const { currentUser } = useAuth();
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareName, setShareName] = useState('');
+  const [sharePhone, setSharePhone] = useState('');
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     getDoc(doc(db, 'satsangs', inviteId))
@@ -53,6 +59,40 @@ export default function ViewInvite() {
     );
   }
 
+  // Record who's being invited, THEN open the share sheet. A blind share sheet
+  // never tells us the recipient, so we capture their mobile up front and write
+  // the same deterministic guest grant the phone flow uses. That both saves them
+  // to the invite list and — via the security rules — lets them see this satsang
+  // (and get a calendar entry) once they sign in with this number.
+  async function recordAndShare() {
+    const norm = normalizePhone(sharePhone);
+    if (!norm) {
+      return showError('Enter a mobile number so the invite is saved and they can see this satsang.');
+    }
+    setSharing(true);
+    try {
+      await setDoc(doc(db, 'guests', `${inviteId}_${norm}`), {
+        inviteId,
+        name: (shareName || '').trim() || sharePhone.trim(),
+        phone: norm,
+        displayPhone: sharePhone.trim(),
+        addedByUid: currentUser.uid,
+        source: 'share-invite',
+        invitedAt: Timestamp.now(),
+      });
+      handleShare();                 // open the share sheet to actually send it
+      setShareOpen(false);
+      setShareName('');
+      setSharePhone('');
+      toast.success('Invite saved — now pick how to send it.');
+    } catch (err) {
+      console.error(err);
+      showError('Could not save the invite. Please try again.');
+    } finally {
+      setSharing(false);
+    }
+  }
+
   function Row({ label, value, multiline }) {
     if (!value) return null;
     return (
@@ -83,11 +123,52 @@ export default function ViewInvite() {
         <Row label="Booking Type" value={invite.publicInvite ? 'Public' : 'Private'} />
       </div>
 
-      {/* Only the host can broadcast-share the invite */}
+      {/* Only the host can share the invite. Sharing records the recipient (by
+          mobile) so they're saved to the invite list and can see a private
+          satsang — a blind share sheet can't grant that. */}
       {isHost && (
-        <button className="btn-primary" onClick={handleShare}>
-          📲 Share Invite
-        </button>
+        <>
+          <button className="btn-primary" onClick={() => setShareOpen(o => !o)}>
+            📲 Share Invite
+          </button>
+          {shareOpen && (
+            <div className="card mt-3">
+              <p className="text-sm text-gray-600 mb-3">
+                Add who you’re inviting so they’re saved to your list and can see
+                this {invite.publicInvite ? '' : 'private '}satsang, then choose how to send it.
+              </p>
+              <input
+                className="input-field mb-2"
+                placeholder="Name (optional)"
+                value={shareName}
+                onChange={e => setShareName(e.target.value)}
+              />
+              <input
+                className="input-field mb-3"
+                type="tel"
+                placeholder="Mobile number"
+                value={sharePhone}
+                onChange={e => setSharePhone(e.target.value)}
+              />
+              <div className="flex gap-3">
+                <button
+                  className="btn-secondary flex-1"
+                  onClick={() => setShareOpen(false)}
+                  disabled={sharing}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn-primary flex-1"
+                  onClick={recordAndShare}
+                  disabled={sharing}
+                >
+                  {sharing ? 'Saving…' : 'Record & Share'}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {canInvite && (
