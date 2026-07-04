@@ -291,11 +291,13 @@ export default function InviteSangat() {
               onChange={() => toggleUser(u.id)}
               className="accent-saffron-400 w-4 h-4"
             />
-            <div>
-              <p className="font-semibold text-gray-800 text-sm">
-                {u.firstName} {u.lastName}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-gray-800 truncate">
+                <span className="font-semibold">{u.firstName} {u.lastName}</span>
+                {(u.mobile || u.email) && (
+                  <span className="text-gray-400 font-normal"> ({u.mobile || u.email})</span>
+                )}
               </p>
-              <p className="text-xs text-gray-400">{u.mobile || u.email}</p>
             </div>
             {invitedUids.has(u.id) && (
               <span className="ml-auto text-[11px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full shrink-0">
