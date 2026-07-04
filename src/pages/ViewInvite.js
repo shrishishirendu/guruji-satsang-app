@@ -157,8 +157,10 @@ export default function ViewInvite() {
           {shareOpen && (
             <div className="card mt-3">
               <p className="text-sm text-gray-600 mb-3">
-                Add who you’re inviting so they’re saved to your list and can see
-                this {invite.publicInvite ? '' : 'private '}satsang, then choose how to send it.
+                Add Unregistered Sangat contacts you would like to invite. These
+                will be saved to your invite list and they can see this{' '}
+                {invite.publicInvite ? 'Public' : 'Private'} Satsang once they
+                register. Also you can choose how to share it (WhatsApp/Messages).
               </p>
               <input
                 className="input-field mb-2"
@@ -186,7 +188,7 @@ export default function ViewInvite() {
                   onClick={recordAndShare}
                   disabled={sharing}
                 >
-                  {sharing ? 'Saving…' : 'Record & Share'}
+                  {sharing ? 'Saving…' : 'Save & Share'}
                 </button>
               </div>
             </div>
