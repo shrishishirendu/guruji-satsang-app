@@ -125,7 +125,7 @@ export default function ViewInvite() {
           className="btn-secondary mt-3"
           onClick={() => navigate(`/invite/${inviteId}/rsvp-list`)}
         >
-          View RSVP List
+          View Invite list &amp; RSVP
         </button>
       )}
     </AppShell>

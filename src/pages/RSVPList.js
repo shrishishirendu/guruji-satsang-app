@@ -3,11 +3,14 @@ import { useParams } from 'react-router-dom';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
+import { useAuth } from '../context/AuthContext';
 
 export default function RSVPList() {
   const { inviteId } = useParams();
+  const { currentUser } = useAuth();
   const [rsvps, setRsvps] = useState([]);
   const [guests, setGuests] = useState([]);
+  const [appInvited, setAppInvited] = useState(0);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
 
@@ -16,10 +19,17 @@ export default function RSVPList() {
       try {
         // The rules only let the satsang's host read these, so a non-host
         // query is rejected — show an access message instead of crashing.
-        const [rsvpSnap, guestSnap] = await Promise.all([
+        // The invitations query is scoped to fromUid == me (the only way the
+        // rules let a host read them), so it counts app-members THIS host
+        // invited; re-invites a guest forwarded on aren't host-readable.
+        const reads = [
           getDocs(query(collection(db, 'rsvps'), where('inviteId', '==', inviteId))),
           getDocs(query(collection(db, 'guests'), where('inviteId', '==', inviteId))),
-        ]);
+        ];
+        if (currentUser?.uid) {
+          reads.push(getDocs(query(collection(db, 'invitations'), where('fromUid', '==', currentUser.uid))));
+        }
+        const [rsvpSnap, guestSnap, inviteSnap] = await Promise.all(reads);
         const rows = rsvpSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         // Sort by creation time client-side (avoids needing a composite index)
         rows.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
@@ -28,6 +38,15 @@ export default function RSVPList() {
         const guestRows = guestSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         guestRows.sort((a, b) => (a.invitedAt?.toMillis?.() || 0) - (b.invitedAt?.toMillis?.() || 0));
         setGuests(guestRows);
+
+        // Unique app-members this host invited to this satsang (dedupe by toUid).
+        const appUids = new Set(
+          (inviteSnap?.docs || [])
+            .map(d => d.data())
+            .filter(d => d.inviteId === inviteId)
+            .map(d => d.toUid)
+        );
+        setAppInvited(appUids.size);
       } catch (err) {
         console.warn('RSVP list not accessible:', err);
         setDenied(true);
@@ -36,10 +55,11 @@ export default function RSVPList() {
       }
     }
     load();
-  }, [inviteId]);
+  }, [inviteId, currentUser]);
 
   const totalAdults   = rsvps.reduce((s, r) => s + (r.adults   || 0), 0);
   const totalChildren = rsvps.reduce((s, r) => s + (r.children || 0), 0);
+  const invitedTotal  = guests.length + appInvited;
 
   return (
     <AppShell>
@@ -55,17 +75,29 @@ export default function RSVPList() {
 
       {!loading && !denied && (
         <>
-        <p className="text-sm text-gray-500 mb-2">
-          {rsvps.length} response{rsvps.length === 1 ? '' : 's'} · {totalAdults + totalChildren} attending
+        <p className="text-sm text-gray-500 mb-1">
+          {invitedTotal} Invited · {rsvps.length} Response{rsvps.length === 1 ? '' : 's'} · {totalAdults + totalChildren} Attending
+        </p>
+        <p className="text-xs text-gray-400 mb-2">
+          A = Adults · C = Children · S = Seva
         </p>
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr>
-                <th className="text-left text-saffron-400 font-semibold pb-3 pr-3">Sangat RSVP</th>
-                <th className="text-saffron-400 font-semibold pb-3 px-3">Adults</th>
-                <th className="text-saffron-400 font-semibold pb-3 px-3">Children</th>
-                <th className="text-saffron-400 font-semibold pb-3 pl-3">Seva</th>
+                <th className="pb-1" />
+                <th
+                  colSpan={3}
+                  className="text-center text-saffron-400 font-semibold pb-1 border-b border-saffron-200"
+                >
+                  RSVP
+                </th>
+              </tr>
+              <tr>
+                <th className="text-left text-saffron-400 font-semibold pt-1 pb-3 pr-3">Sangat</th>
+                <th className="text-saffron-400 font-semibold pt-1 pb-3 px-3">A</th>
+                <th className="text-saffron-400 font-semibold pt-1 pb-3 px-3">C</th>
+                <th className="text-saffron-400 font-semibold pt-1 pb-3 pl-3">S</th>
               </tr>
             </thead>
             <tbody>
