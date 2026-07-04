@@ -44,7 +44,7 @@ export default function AppShell({ children }) {
               onClick={() => navigate('/')}
               className="btn-primary mt-6"
             >
-              🏠 Home
+              Home
             </button>
           )}
           {currentUser && !onCalendar && !onHome && (
