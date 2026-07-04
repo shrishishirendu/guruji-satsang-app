@@ -172,7 +172,7 @@ export default function RSVPList() {
                 </th>
               </tr>
               <tr>
-                <th className="text-left text-saffron-400 font-semibold pt-1 pb-3 pr-3">Sangat</th>
+                <th className="text-left text-saffron-400 font-semibold pt-1 pb-3 pr-3">Registered Sangat</th>
                 <th className="text-saffron-400 font-semibold pt-1 pb-3 px-3">A</th>
                 <th className="text-saffron-400 font-semibold pt-1 pb-3 px-3">C</th>
                 <th className="text-saffron-400 font-semibold pt-1 pb-3 pl-3">S</th>

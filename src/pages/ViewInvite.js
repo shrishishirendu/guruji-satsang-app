@@ -123,14 +123,15 @@ export default function ViewInvite() {
         <Row label="Booking Type" value={invite.publicInvite ? 'Public' : 'Private'} />
       </div>
 
-      {/* Row 1: Edit + Invite registered Sangat, kept on one line — Edit is
-          sized to its text so the longer label gets the remaining width, and a
-          slightly smaller font keeps both un-wrapped even on small iPhones. */}
+      {/* Row 1: Edit + Invite registered Sangat on one line. .btn-secondary sets
+          w-full, so Edit needs an inline width:auto to shrink to its text and
+          NOT push the longer button off-screen; the label takes the rest. */}
       {canInvite && (
         <div className="flex gap-3">
           {isHost && (
             <button
-              className="btn-secondary flex-none px-4 text-sm"
+              className="btn-secondary flex-none px-5 text-sm"
+              style={{ width: 'auto' }}
               onClick={() => navigate(`/edit-invite/${inviteId}`)}
             >
               Edit
