@@ -10,7 +10,7 @@ export default function RSVPList() {
   const { currentUser } = useAuth();
   const [rsvps, setRsvps] = useState([]);
   const [guests, setGuests] = useState([]);
-  const [appInvited, setAppInvited] = useState(0);
+  const [appInvitees, setAppInvitees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
 
@@ -39,14 +39,28 @@ export default function RSVPList() {
         guestRows.sort((a, b) => (a.invitedAt?.toMillis?.() || 0) - (b.invitedAt?.toMillis?.() || 0));
         setGuests(guestRows);
 
-        // Unique app-members this host invited to this satsang (dedupe by toUid).
-        const appUids = new Set(
+        // App-members this host invited to this satsang (dedupe by toUid), with
+        // names resolved from their profiles so the host sees WHO, not just how
+        // many. Only read the directory when there's at least one to name.
+        const appUids = [...new Set(
           (inviteSnap?.docs || [])
             .map(d => d.data())
             .filter(d => d.inviteId === inviteId)
             .map(d => d.toUid)
-        );
-        setAppInvited(appUids.size);
+        )];
+        let appList = [];
+        if (appUids.length) {
+          const usersSnap = await getDocs(collection(db, 'users'));
+          const nameByUid = {};
+          usersSnap.docs.forEach(u => {
+            const d = u.data();
+            nameByUid[u.id] = `${d.firstName || ''} ${d.lastName || ''}`.trim();
+          });
+          appList = appUids
+            .map(uid => ({ uid, name: nameByUid[uid] || 'Sangat member' }))
+            .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+        }
+        setAppInvitees(appList);
       } catch (err) {
         console.warn('RSVP list not accessible:', err);
         setDenied(true);
@@ -59,7 +73,7 @@ export default function RSVPList() {
 
   const totalAdults   = rsvps.reduce((s, r) => s + (r.adults   || 0), 0);
   const totalChildren = rsvps.reduce((s, r) => s + (r.children || 0), 0);
-  const invitedTotal  = guests.length + appInvited;
+  const invitedTotal  = guests.length + appInvitees.length;
 
   return (
     <AppShell>
@@ -130,10 +144,26 @@ export default function RSVPList() {
         </>
       )}
 
+      {!loading && !denied && appInvitees.length > 0 && (
+        <div className="card mt-6">
+          <h2 className="text-saffron-400 font-semibold mb-3 text-sm">
+            Invited via Invite Sangat — app members ({appInvitees.length})
+          </h2>
+          <div className="flex flex-col gap-2">
+            {appInvitees.map(a => (
+              <div key={a.uid} className="text-sm text-gray-700">{a.name}</div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-3">
+            Registered sangat you invited from the app — they see this satsang on their calendar and appear in the table above once they RSVP.
+          </p>
+        </div>
+      )}
+
       {!loading && !denied && guests.length > 0 && (
         <div className="card mt-6">
           <h2 className="text-saffron-400 font-semibold mb-3 text-sm">
-            Invited from phone ({guests.length})
+            Invited via WhatsApp / phone ({guests.length})
           </h2>
           <div className="flex flex-col gap-2">
             {guests.map(g => (
