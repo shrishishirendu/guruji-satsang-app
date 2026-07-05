@@ -50,12 +50,13 @@ export default function SatsangsCalendar() {
       {/* Centered title, matching every other page — sits above the Guru Ji image */}
       <h1 className="page-header mb-2">Satsang Seva</h1>
 
-      {/* Guru Ji sticker — file lives in /public/guruji.jpg */}
+      {/* Guru Ji sticker — head-focused square crop so the circle doesn't clip
+          the forehead (full portrait lives in /public/guruji.jpg). */}
       <div className="flex justify-center mb-2 mt-2">
         <img
-          src="/guruji.jpg"
+          src="/guruji-face.jpg"
           alt="Guru Ji"
-          className="w-20 h-20 rounded-full object-cover object-top border-2 border-saffron-200 shadow-sm"
+          className="w-20 h-20 rounded-full object-cover object-center border-2 border-saffron-200 shadow-sm"
         />
       </div>
 

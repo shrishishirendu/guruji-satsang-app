@@ -2,13 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#EF9F27" />
     <meta
       name="description"
       content="Satsang Seva — create Satsang invites, invite sangat, and collect RSVPs. Jai Guruji 🙏"
     />
+
+    <!-- Link preview (WhatsApp / Messages / social). og:image must be an
+         absolute URL, so it's hardcoded to the live domain rather than
+         %PUBLIC_URL%. Shows Guru Ji instead of a generic icon when shared. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Satsang Seva" />
+    <meta property="og:title" content="Satsang Seva — Invites & RSVP" />
+    <meta property="og:description" content="Create Satsang invites, invite sangat, and collect RSVPs. Jai Guruji 🙏" />
+    <meta property="og:image" content="https://satsangseva.net/logo512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:url" content="https://satsangseva.net/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Satsang Seva — Invites & RSVP" />
+    <meta name="twitter:description" content="Create Satsang invites, invite sangat, and collect RSVPs. Jai Guruji 🙏" />
+    <meta name="twitter:image" content="https://satsangseva.net/logo512.png" />
     <!-- Lets the app open full-screen when added to an iPhone home screen -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />

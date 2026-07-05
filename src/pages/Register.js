@@ -36,12 +36,13 @@ export default function Register() {
     <AppShell>
       <h1 className="page-header mt-4">Satsang Seva</h1>
 
-      {/* Guru Ji thumbnail — file lives in /public/guruji.jpg */}
+      {/* Guru Ji thumbnail — head-focused square crop so the circle doesn't clip
+          the forehead (full portrait lives in /public/guruji.jpg). */}
       <div className="flex justify-center mb-4">
         <img
-          src="/guruji.jpg"
+          src="/guruji-face.jpg"
           alt="Guru Ji"
-          className="w-20 h-20 rounded-full object-cover object-top border-2 border-saffron-200 shadow-sm"
+          className="w-20 h-20 rounded-full object-cover object-center border-2 border-saffron-200 shadow-sm"
         />
       </div>
 
