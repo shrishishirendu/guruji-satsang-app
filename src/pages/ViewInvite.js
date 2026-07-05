@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
+import { shareInvite } from '../utils/contacts';
 import { formatRsvpBy } from '../utils/dates';
 
 export default function ViewInvite() {
@@ -36,6 +37,27 @@ export default function ViewInvite() {
   const dateStr = invite.date
     ? format(invite.date.toDate(), 'd MMMM yyyy')
     : '—';
+
+  // "Invite Unregistered Sangat" for a PUBLIC satsang: open the phone's share
+  // sheet so the host can bulk-pick recipients in WhatsApp/Messages and send.
+  // The link alone lets anyone view & RSVP a public satsang, so we don't need to
+  // capture who was picked. (Private satsangs go to the capture screen instead —
+  // see the button below — because there the invitee's number must be recorded
+  // for them to get access.)
+  function shareToWhatsApp() {
+    const rsvpLink = `${window.location.origin}/invite/${inviteId}/rsvp`;
+    shareInvite(
+      {
+        dateStr,
+        startTime: invite.startTime,
+        endTime: invite.endTime,
+        address: invite.address,
+        rsvpBy: formatRsvpBy(invite.rsvpBy),
+      },
+      rsvpLink,
+      invite.hostName,
+    );
+  }
 
   function Row({ label, value, multiline }) {
     if (!value) return null;
@@ -90,12 +112,18 @@ export default function ViewInvite() {
         </div>
       )}
 
-      {/* Row 2: host invites people who aren't on the app yet — a bulk WhatsApp
-          flow on its own screen (add several contacts, message each). */}
+      {/* Row 2: invite people who aren't on the app yet. Public satsang → open
+          the WhatsApp/Messages share sheet to bulk-pick & send (no capture
+          needed, the link is enough). Private satsang → the capture screen,
+          where each invitee's number is recorded so they get access. */}
       {isHost && (
         <button
           className="btn-secondary text-sm mt-3"
-          onClick={() => navigate(`/invite/${inviteId}/invite-unregistered`)}
+          onClick={() =>
+            invite.publicInvite === true
+              ? shareToWhatsApp()
+              : navigate(`/invite/${inviteId}/invite-unregistered`)
+          }
         >
           Invite Unregistered Sangat
         </button>
