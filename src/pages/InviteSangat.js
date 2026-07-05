@@ -3,34 +3,24 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   collection, getDocs, query, where, doc, getDoc, setDoc, Timestamp,
 } from 'firebase/firestore';
-import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
-import {
-  isContactPickerSupported, pickContacts, normalizePhone,
-  buildInviteMessage, buildWhatsAppLink,
-} from '../utils/contacts';
+import { normalizePhone } from '../utils/contacts';
 import { showError } from '../utils/notify';
-import { formatRsvpBy } from '../utils/dates';
 
 export default function InviteSangat() {
   const { inviteId } = useParams();
   const navigate = useNavigate();
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser } = useAuth();
 
-  // App users (existing flow)
+  // Registered app users to invite.
   const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [search, setSearch] = useState('');
 
-  // Phone-directory guests (new flow)
   const [invite, setInvite] = useState(null);
-  const [guests, setGuests] = useState([]);          // [{ name, phone }]
-  const [manualName, setManualName] = useState('');
-  const [manualPhone, setManualPhone] = useState('');
-
   const [sending, setSending] = useState(false);
 
   // Baseline of who was ALREADY invited when this page opened, so re-opening to
@@ -38,10 +28,6 @@ export default function InviteSangat() {
   // re-stamping) and we can badge existing invitees as "Invited".
   const [invitedUids, setInvitedUids] = useState(new Set());
   const [invitedPhones, setInvitedPhones] = useState(new Set());
-
-  const hostName = userProfile
-    ? `${userProfile.firstName} ${userProfile.lastName}`
-    : '';
 
   useEffect(() => {
     // Registered sangat, sorted alphabetically (dictionary order) by full name.
@@ -71,8 +57,8 @@ export default function InviteSangat() {
       if (snap.exists()) setInvite({ id: snap.id, ...snap.data() });
     });
 
-    // Pre-tick people I've already invited, and re-load guests I've added, so a
-    // host managing the event doesn't re-send or lose existing entries (#6).
+    // Pre-tick registered people I've already invited, so a host managing the
+    // event doesn't re-send existing invites (#6).
     getDocs(query(collection(db, 'invitations'), where('fromUid', '==', currentUser.uid)))
       .then(snap => {
         const already = snap.docs
@@ -86,16 +72,18 @@ export default function InviteSangat() {
       })
       .catch(() => {});
 
+    // Phone/WhatsApp guests this host previously invited. Kept only to badge
+    // "Invited" on anyone who has since registered and now appears in the
+    // Registered Sangat list above (matched by number). Unregistered invites
+    // themselves are sent from the "Invite Unregistered Sangat" flow.
     getDocs(query(collection(db, 'guests'), where('addedByUid', '==', currentUser.uid)))
       .then(snap => {
-        const mine = snap.docs
+        const phones = snap.docs
           .map(d => d.data())
           .filter(d => d.inviteId === inviteId)
-          .map(d => ({ name: d.name, phone: d.displayPhone || d.phone }));
-        if (mine.length) {
-          setGuests(mine);
-          setInvitedPhones(new Set(mine.map(g => normalizePhone(g.phone))));
-        }
+          .map(d => normalizePhone(d.displayPhone || d.phone))
+          .filter(Boolean);
+        if (phones.length) setInvitedPhones(new Set(phones));
       })
       .catch(() => {});
   }, [currentUser.uid, inviteId]);
@@ -118,91 +106,26 @@ export default function InviteSangat() {
     });
   }
 
-  // ---- Phone-directory helpers ---------------------------------------------
-
-  function addGuest(name, phone) {
-    const raw = (phone || '').trim();
-    if (!raw) return showError('A phone number is required.');
-    const norm = normalizePhone(raw);
-    setGuests(g => {
-      // Dedupe by normalized number so "0404…", "+61404…" and "61404…" match.
-      if (g.some(x => normalizePhone(x.phone) === norm)) {
-        toast('Already added', { icon: 'ℹ️' });
-        return g;
-      }
-      return [...g, { name: (name || '').trim() || raw, phone: raw }];
-    });
-  }
-
-  function removeGuest(phone) {
-    setGuests(g => g.filter(x => x.phone !== phone));
-  }
-
-  async function importFromPhone() {
-    const picked = await pickContacts();
-    if (picked.length === 0) return;
-    let added = 0;
-    setGuests(g => {
-      const existing = new Set(g.map(x => normalizePhone(x.phone)));
-      const fresh = [];
-      picked.forEach(c => {
-        const raw = (c.phone || '').trim();
-        const norm = normalizePhone(raw);
-        if (raw && norm && !existing.has(norm)) {
-          existing.add(norm);
-          fresh.push({ name: c.name || raw, phone: raw });
-        }
-      });
-      added = fresh.length;
-      return [...g, ...fresh];
-    });
-    toast.success(`${added} contact${added === 1 ? '' : 's'} added`);
-  }
-
-  function handleManualAdd() {
-    if (!manualPhone.trim()) return showError('Enter a phone number.');
-    addGuest(manualName, manualPhone);
-    setManualName('');
-    setManualPhone('');
-  }
-
-  const rsvpLink = `${window.location.origin}/invite/${inviteId}/rsvp`;
-  const inviteMeta = invite && {
-    dateStr: invite.date ? format(invite.date.toDate(), 'd MMMM yyyy') : '',
-    startTime: invite.startTime,
-    endTime: invite.endTime,
-    address: invite.address,
-    rsvpBy: formatRsvpBy(invite.rsvpBy),
-  };
-
-  function whatsappLinkFor(guest) {
-    const message = buildInviteMessage(inviteMeta, rsvpLink, hostName);
-    return buildWhatsAppLink(guest.phone, message);
-  }
-
   // ---- Send ----------------------------------------------------------------
 
   async function sendInvites() {
-    if (selected.size === 0 && guests.length === 0) {
-      return showError('Select sangat or add a contact to invite.');
+    if (selected.size === 0) {
+      return showError('Select sangat to invite.');
     }
     // Only send to people who weren't already invited when the page opened, so
     // re-opening to add more people sends just the new ones (accurate count) and
     // updates the existing invite rather than re-stamping everyone.
     const newUids = [...selected].filter(uid => !invitedUids.has(uid));
-    const newGuests = guests
-      .map(g => ({ ...g, norm: normalizePhone(g.phone) }))
-      .filter(g => g.norm && !invitedPhones.has(g.norm));
 
-    if (newUids.length === 0 && newGuests.length === 0) {
-      return toast('Everyone here is already invited — add someone new to update the invite.', { icon: 'ℹ️' });
+    if (newUids.length === 0) {
+      return toast('Everyone selected is already invited — pick someone new to update the invite.', { icon: 'ℹ️' });
     }
 
     setSending(true);
     try {
-      // Deterministic ids ("<inviteId>_<uid>" / "<inviteId>_<phone>") make
-      // re-sending idempotent — no duplicate invites (#6) — and act as the
-      // access grant the security rules check.
+      // Deterministic ids ("<inviteId>_<uid>") make re-sending idempotent — no
+      // duplicate invites (#6) — and act as the access grant the security rules
+      // check.
       const appUserWrites = newUids.map(uid =>
         setDoc(doc(db, 'invitations', `${inviteId}_${uid}`), {
           inviteId,
@@ -212,20 +135,8 @@ export default function InviteSangat() {
           status: 'sent',
         })
       );
-      const guestWrites = newGuests.map(g =>
-        setDoc(doc(db, 'guests', `${inviteId}_${g.norm}`), {
-          inviteId,
-          name: g.name,
-          phone: g.norm,
-          displayPhone: g.phone,
-          addedByUid: currentUser.uid,
-          source: 'phone-directory',
-          invitedAt: Timestamp.now(),
-        })
-      );
-      await Promise.all([...appUserWrites, ...guestWrites]);
-      const total = newUids.length + newGuests.length;
-      toast.success(`${total} invite${total === 1 ? '' : 's'} sent!`);
+      await Promise.all(appUserWrites);
+      toast.success(`${newUids.length} invite${newUids.length === 1 ? '' : 's'} sent!`);
       navigate(`/invite/${inviteId}/invited`);
     } catch (err) {
       console.error(err);
@@ -240,24 +151,15 @@ export default function InviteSangat() {
     (u.mobile || '').includes(search)
   );
 
-  // A phone/WhatsApp guest who has since registered now appears in the
-  // Registered Sangat list above (matched by number), so: (a) drop them from the
-  // phone list to avoid showing them in both places, and (b) still badge them
-  // "Invited" up top since they were already invited by phone.
+  // Badge "Invited" on a registered user who was already invited — either
+  // directly (uid) or earlier by phone before they registered (matched by
+  // number, via the "Invite Unregistered Sangat" flow).
   const phoneOf = u => u.mobileNormalized || normalizePhone(u.mobile || '');
-  const registeredPhones = new Set(users.map(phoneOf).filter(Boolean));
-  const visibleGuests = guests.filter(g => !registeredPhones.has(normalizePhone(g.phone)));
   const isUserInvited = u => invitedUids.has(u.id) || invitedPhones.has(phoneOf(u));
 
-  // How many people are newly added vs. already invited — drives the Send count
-  // so the host sees exactly how many new invites will go out.
-  const isNewGuest = g => {
-    const n = normalizePhone(g.phone);
-    return n && !invitedPhones.has(n);
-  };
-  const newCount =
-    [...selected].filter(uid => !invitedUids.has(uid)).length +
-    guests.filter(isNewGuest).length;
+  // How many selected people are newly added vs. already invited — drives the
+  // Send count so the host sees exactly how many new invites will go out.
+  const newCount = [...selected].filter(uid => !invitedUids.has(uid)).length;
   const hasExisting = invitedUids.size > 0 || invitedPhones.size > 0;
 
   return (
@@ -279,7 +181,7 @@ export default function InviteSangat() {
       {hasExisting && (
         <p className="text-xs text-gray-400 mb-3">
           People already invited are marked{' '}
-          <span className="text-green-700 font-medium">Invited</span>. Select or add anyone
+          <span className="text-green-700 font-medium">Invited</span>. Select anyone
           new, then Send — only the new people are notified.
         </p>
       )}
@@ -319,87 +221,6 @@ export default function InviteSangat() {
           <p className="text-center text-gray-400 py-6">No sangat found</p>
         )}
       </div>
-
-      {/* ---- Invite from phone directory ---- */}
-      <h2 className="text-saffron-500 font-semibold mb-2">Invite from your phone</h2>
-
-      {isContactPickerSupported() && (
-        <button
-          type="button"
-          className="btn-secondary mb-3"
-          onClick={importFromPhone}
-        >
-          📇 Pick from Phone Contacts
-        </button>
-      )}
-
-      {/* Manual add */}
-      <div className="flex gap-2 mb-3">
-        <input
-          className="input-field"
-          placeholder="Name"
-          value={manualName}
-          onChange={e => setManualName(e.target.value)}
-        />
-        <input
-          className="input-field"
-          placeholder="Phone (e.g. 0404…)"
-          value={manualPhone}
-          inputMode="tel"
-          onChange={e => setManualPhone(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleManualAdd(); } }}
-        />
-        <button
-          type="button"
-          className="text-saffron-600 font-semibold whitespace-nowrap hover:text-saffron-800 px-2"
-          onClick={handleManualAdd}
-        >
-          Add
-        </button>
-      </div>
-
-      {/* Guest list — registered guests are hidden here (they show up top) */}
-      {visibleGuests.length > 0 && (
-        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto mb-4">
-          {visibleGuests.map(g => (
-            <div
-              key={g.phone}
-              className="flex items-center gap-3 p-3 rounded-xl border-2 border-blue-100 bg-blue-50"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-800 text-sm truncate">{g.name}</p>
-                <p className="text-xs text-gray-400">{g.phone}</p>
-              </div>
-              {invitedPhones.has(normalizePhone(g.phone)) && (
-                <span className="text-[11px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full shrink-0">
-                  Invited
-                </span>
-              )}
-              <a
-                href={whatsappLinkFor(g)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-green-600 font-semibold text-sm whitespace-nowrap hover:text-green-700"
-              >
-                WhatsApp
-              </a>
-              <button
-                type="button"
-                onClick={() => removeGuest(g.phone)}
-                className="text-gray-400 hover:text-red-500 text-lg leading-none"
-                aria-label="Remove"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <p className="text-xs text-gray-400 mb-4 text-center">
-        Tap <span className="text-green-600 font-medium">WhatsApp</span> to send each guest
-        their invite &amp; RSVP link.
-      </p>
 
       <button className="btn-primary" onClick={sendInvites} disabled={sending || newCount === 0}>
         {sending

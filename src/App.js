@@ -17,6 +17,7 @@ import ViewInvite       from './pages/ViewInvite';
 import RSVPPage         from './pages/RSVPPage';
 import RSVPList         from './pages/RSVPList';
 import InviteSangat     from './pages/InviteSangat';
+import InviteUnregistered from './pages/InviteUnregistered';
 import InviteSent       from './pages/InviteSent';
 
 // Clears lingering error toasts whenever the route changes, so a stale error
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/invite/:inviteId/rsvp"        element={<PrivateRoute><RSVPPage /></PrivateRoute>} />
           <Route path="/invite/:inviteId/rsvp-list"   element={<PrivateRoute><RSVPList /></PrivateRoute>} />
           <Route path="/invite/:inviteId/invite-sangat" element={<PrivateRoute><InviteSangat /></PrivateRoute>} />
+          <Route path="/invite/:inviteId/invite-unregistered" element={<PrivateRoute><InviteUnregistered /></PrivateRoute>} />
           <Route path="/invite/:inviteId/invited"     element={<PrivateRoute><InviteSent /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
