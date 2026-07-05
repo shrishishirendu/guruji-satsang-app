@@ -78,10 +78,10 @@ export default function SatsangsCalendar() {
       </p>
       <p className="text-center text-xs text-gray-500 mb-4 flex items-center justify-center gap-4">
         <span className="inline-flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-blue-500" /> Private
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Private
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-green-500" /> Public
+          <span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Public
         </span>
       </p>
 
@@ -128,9 +128,9 @@ export default function SatsangsCalendar() {
             >
               {format(day, 'd')}
               {hasEvent && (
-                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                  {entry.private > 0 && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                  {entry.public > 0 && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
+                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1">
+                  {entry.private > 0 && <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
+                  {entry.public > 0 && <span className="w-2.5 h-2.5 rounded-full bg-green-500" />}
                 </span>
               )}
             </button>

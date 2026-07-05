@@ -22,7 +22,7 @@ export default function InviteSent() {
           <span className="font-bold text-saffron-400">Satsang Seva</span>
         </p>
         <p className="text-gray-500 text-sm leading-relaxed mt-2">
-          Those Sangat who are not registered on the App will receive a WhatsApp message to download the app to view your invite.
+          You will receive a Link on WhatsApp/messages to Register and then Go to the Satsang Date, view your invite and RSVP.
         </p>
         <div className="flex flex-col gap-3 mt-8 w-full max-w-xs">
           {/* Let the host keep adding people without hunting back through the app */}

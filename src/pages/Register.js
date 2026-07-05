@@ -81,7 +81,7 @@ export default function Register() {
             className="input-field"
             type="email"
             name="email"
-            placeholder="Email ID"
+            placeholder="Email ID*"
             value={form.email}
             onChange={handleChange}
           />

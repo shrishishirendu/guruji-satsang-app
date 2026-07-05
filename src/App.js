@@ -1,7 +1,8 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { dismissErrors } from './utils/notify';
 import PrivateRoute from './components/PrivateRoute';
 
 import Welcome          from './pages/Welcome';
@@ -18,10 +19,21 @@ import RSVPList         from './pages/RSVPList';
 import InviteSangat     from './pages/InviteSangat';
 import InviteSent       from './pages/InviteSent';
 
+// Clears lingering error toasts whenever the route changes, so a stale error
+// message doesn't hang around after the user navigates to a different screen.
+function ErrorToastCleanup() {
+  const location = useLocation();
+  useEffect(() => {
+    dismissErrors();
+  }, [location.pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ErrorToastCleanup />
         <Toaster
           position="top-center"
           toastOptions={{
