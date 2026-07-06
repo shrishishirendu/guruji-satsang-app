@@ -6,6 +6,15 @@ import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { normalizePhone } from '../utils/contacts';
 
+// Colour each person by how they were invited. A registered app member always
+// wins (green), even if also phone-invited; unregistered phone invites are split
+// by the button used — hand-added (blue) vs shared over WhatsApp (purple).
+const NAME_COLOR = {
+  app: 'text-green-700',
+  manual: 'text-blue-600',
+  whatsapp: 'text-purple-600',
+};
+
 export default function RSVPList() {
   const { inviteId } = useParams();
   const { currentUser } = useAuth();
@@ -63,7 +72,7 @@ export default function RSVPList() {
           upsert(d.toUid, {
             key: d.toUid, uid: d.toUid,
             name: prof.name || 'Sangat member', phone: prof.phone || '',
-            channel: 'app',
+            channel: 'app', category: 'app',
           });
         });
 
@@ -74,15 +83,17 @@ export default function RSVPList() {
           const phone = g.phone || normalizePhone(g.displayPhone || '');
           const registeredUid = phone && uidByPhone[phone];
           if (registeredUid) {
+            // Registered wins: fold the phone invite into their app row.
             const prof = usersById[registeredUid] || {};
             upsert(registeredUid, {
               key: registeredUid, uid: registeredUid,
-              name: prof.name || g.name, phone, channel: 'app',
+              name: prof.name || g.name, phone, channel: 'app', category: 'app',
             });
           } else {
             upsert(`phone:${phone}`, {
               key: `phone:${phone}`, name: g.name, phone,
               displayPhone: g.displayPhone || g.phone, channel: 'phone',
+              category: g.via === 'whatsapp' ? 'whatsapp' : 'manual',
             });
           }
         });
@@ -94,7 +105,7 @@ export default function RSVPList() {
             upsert(r.uid, {
               key: r.uid, uid: r.uid,
               name: r.name || prof.name || 'Sangat member', phone: prof.phone || '',
-              channel: 'app',
+              channel: 'app', category: 'app',
             });
           }
         });
@@ -111,9 +122,11 @@ export default function RSVPList() {
           };
         });
 
-        // Registered/app members first, then phone invitees; alphabetical within.
+        // Group by channel — registered, then hand-added, then WhatsApp-shared —
+        // so same-coloured rows sit together; alphabetical within each group.
+        const rank = { app: 0, manual: 1, whatsapp: 2 };
         rows.sort((a, b) =>
-          (a.channel === 'phone' ? 1 : 0) - (b.channel === 'phone' ? 1 : 0) ||
+          (rank[a.category] ?? 3) - (rank[b.category] ?? 3) ||
           a.name.toLowerCase().localeCompare(b.name.toLowerCase())
         );
 
@@ -132,7 +145,9 @@ export default function RSVPList() {
   const totalChildren = people.reduce((s, p) => s + (p.children || 0), 0);
   const responded     = people.filter(p => p.responded).length;
   const anyResponded  = responded > 0;
-  const anyPhone      = people.some(p => p.channel === 'phone');
+  const hasApp        = people.some(p => p.category === 'app');
+  const hasManual     = people.some(p => p.category === 'manual');
+  const hasWhatsapp   = people.some(p => p.category === 'whatsapp');
 
   return (
     <AppShell>
@@ -154,10 +169,12 @@ export default function RSVPList() {
         <p className="text-xs text-gray-400 mb-1">
           A = Adults · C = Children · S = Seva
         </p>
-        {anyPhone && (
-          <p className="text-xs text-blue-500 mb-2">
-            Names in blue were invited via WhatsApp / phone and haven’t registered yet.
-          </p>
+        {(hasApp || hasManual || hasWhatsapp) && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-2">
+            {hasApp && <span className="text-green-700">● Registered</span>}
+            {hasManual && <span className="text-blue-600">● Invited manually</span>}
+            {hasWhatsapp && <span className="text-purple-600">● Shared via WhatsApp</span>}
+          </div>
         )}
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
@@ -182,11 +199,11 @@ export default function RSVPList() {
               {people.map(p => (
                 <tr key={p.key} className="border-t border-gray-50">
                   <td className="py-2 pr-3">
-                    <span className={p.channel === 'phone' ? 'text-blue-600' : 'text-gray-700'}>
+                    <span className={NAME_COLOR[p.category] || 'text-gray-700'}>
                       {p.name}
                     </span>
                     {p.channel === 'phone' && p.displayPhone && (
-                      <span className="text-blue-400"> ({p.displayPhone})</span>
+                      <span className={p.category === 'whatsapp' ? 'text-purple-400' : 'text-blue-400'}> ({p.displayPhone})</span>
                     )}
                   </td>
                   <td className="py-2 px-3 text-center text-gray-700">{p.adults || ''}</td>

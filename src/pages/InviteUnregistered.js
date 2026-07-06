@@ -171,6 +171,10 @@ export default function InviteUnregistered() {
       displayPhone: guest.phone,
       addedByUid: currentUser.uid,
       source: 'unregistered-invite',
+      // How this number was invited, so the invite list can colour it: 'manual'
+      // (typed/picked on the Manually screen) vs 'whatsapp' (the Share via
+      // WhatsApp flow). Same deterministic doc id means the most recent add wins.
+      via: shareMode ? 'whatsapp' : 'manual',
       invitedAt: Timestamp.now(),
     });
   }
