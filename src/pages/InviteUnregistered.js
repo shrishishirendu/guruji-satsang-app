@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   collection, getDocs, query, where, doc, getDoc, setDoc, Timestamp,
 } from 'firebase/firestore';
@@ -10,7 +10,7 @@ import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import {
   isContactPickerSupported, pickContacts, normalizePhone,
-  buildInviteMessage, buildWhatsAppLink,
+  buildInviteMessage, buildWhatsAppLink, shareInvite,
 } from '../utils/contacts';
 import { showError } from '../utils/notify';
 import { formatRsvpBy } from '../utils/dates';
@@ -23,6 +23,13 @@ import { formatRsvpBy } from '../utils/dates';
 export default function InviteUnregistered() {
   const { inviteId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // "share" mode (from the "Share Invite via WhatsApp" button): same capture UI,
+  // but the primary action is a single share-sheet blast instead of Save & Finish.
+  // Either way every number entered here is recorded as a guest so the invitee
+  // shows up in the host's invite list — the share sheet can't report who the
+  // host actually picked, so we track from the list they build on this screen.
+  const shareMode = searchParams.get('mode') === 'share';
   const { currentUser, userProfile } = useAuth();
 
   const [invite, setInvite] = useState(null);
@@ -208,6 +215,31 @@ export default function InviteUnregistered() {
     }
   }
 
+  // Share mode: open the phone's share sheet with the invite AND record every
+  // number the host listed as a guest, so those people show up in the invite
+  // list. The share sheet must be opened inside the click gesture or the browser
+  // blocks it, so we fire it first and save the grants in the background.
+  function shareToAllViaWhatsApp() {
+    shareInvite(inviteMeta, rsvpLink, hostName);
+
+    const newGuests = guests
+      .map(g => ({ ...g, norm: normalizePhone(g.phone) }))
+      .filter(g => g.norm && !invitedPhones.has(g.norm));
+    if (newGuests.length === 0) {
+      navigate(`/invite/${inviteId}/invited`);
+      return;
+    }
+
+    setSending(true);
+    Promise.all(newGuests.map(g => guestGrant(g, g.norm)))
+      .then(() => navigate(`/invite/${inviteId}/invited`))
+      .catch(err => {
+        console.error(err);
+        showError('Shared, but saving to your invite list failed. Please try again.');
+      })
+      .finally(() => setSending(false));
+  }
+
   const isSaved = g => invitedPhones.has(normalizePhone(g.phone));
   const newCount = guests.filter(g => !isSaved(g)).length;
 
@@ -215,13 +247,28 @@ export default function InviteUnregistered() {
     <AppShell>
       <h1 className="page-header mt-4">Satsang Seva</h1>
 
-      <h2 className="text-saffron-500 font-semibold mb-2">Invite Unregistered Sangat</h2>
+      <h2 className="text-saffron-500 font-semibold mb-2">
+        {shareMode ? 'Share Invite via WhatsApp' : 'Invite Unregistered Sangat'}
+      </h2>
       <p className="text-sm text-gray-500 mb-4 leading-relaxed">
-        Add the Sangat you'd like to invite, then tap{' '}
-        <span className="text-green-600 font-medium">WhatsApp</span> to send each
-        person their invite &amp; RSVP link. They're saved to your invite list and
-        can see this {invite?.publicInvite ? 'Public' : 'Private'} Satsang once they
-        register with that number.
+        {shareMode ? (
+          <>
+            Add the numbers you're inviting, then tap{' '}
+            <span className="text-green-600 font-medium">Share via WhatsApp</span> to
+            send them all the invite &amp; RSVP link. Everyone you add is saved to your
+            invite list and can see this{' '}
+            {invite?.publicInvite ? 'Public' : 'Private'} Satsang once they register
+            with that number.
+          </>
+        ) : (
+          <>
+            Add the Sangat you'd like to invite, then tap{' '}
+            <span className="text-green-600 font-medium">WhatsApp</span> to send each
+            person their invite &amp; RSVP link. They're saved to your invite list and
+            can see this {invite?.publicInvite ? 'Public' : 'Private'} Satsang once they
+            register with that number.
+          </>
+        )}
       </p>
 
       {isContactPickerSupported() && (
@@ -335,21 +382,44 @@ export default function InviteUnregistered() {
       )}
 
       <p className="text-xs text-gray-400 mb-4 text-center">
-        Tap <span className="text-green-600 font-medium">WhatsApp</span> to send each
-        guest their invite, or Save &amp; Finish to add everyone to your invite list.
+        {shareMode ? (
+          <>
+            Tap <span className="text-green-600 font-medium">Share via WhatsApp</span>{' '}
+            to send everyone the invite — they're all added to your invite list.
+          </>
+        ) : (
+          <>
+            Tap <span className="text-green-600 font-medium">WhatsApp</span> to send each
+            guest their invite, or Save &amp; Finish to add everyone to your invite list.
+          </>
+        )}
       </p>
 
-      <button
-        className="btn-primary"
-        onClick={saveAndFinish}
-        disabled={sending || guests.length === 0}
-      >
-        {sending
-          ? 'Saving…'
-          : newCount > 0
-            ? `Save ${newCount} & Finish`
-            : 'Finish'}
-      </button>
+      {shareMode ? (
+        <button
+          className="btn-primary"
+          onClick={shareToAllViaWhatsApp}
+          disabled={sending || guests.length === 0}
+        >
+          {sending
+            ? 'Sharing…'
+            : newCount > 0
+              ? `Share via WhatsApp (${newCount})`
+              : 'Share via WhatsApp'}
+        </button>
+      ) : (
+        <button
+          className="btn-primary"
+          onClick={saveAndFinish}
+          disabled={sending || guests.length === 0}
+        >
+          {sending
+            ? 'Saving…'
+            : newCount > 0
+              ? `Save ${newCount} & Finish`
+              : 'Finish'}
+        </button>
+      )}
     </AppShell>
   );
 }

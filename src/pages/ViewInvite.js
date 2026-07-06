@@ -5,7 +5,6 @@ import { format } from 'date-fns';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
-import { shareInvite } from '../utils/contacts';
 import { formatRsvpBy } from '../utils/dates';
 
 export default function ViewInvite() {
@@ -37,26 +36,6 @@ export default function ViewInvite() {
   const dateStr = invite.date
     ? format(invite.date.toDate(), 'd MMMM yyyy')
     : '—';
-
-  // "Share Invite via WhatsApp": open the phone's share sheet so the host can
-  // bulk-pick recipients in WhatsApp/Messages and send the invite & RSVP link.
-  // For a PUBLIC satsang the link alone lets anyone view & RSVP. For a PRIVATE
-  // satsang the recipient still needs a guest grant (their number recorded) to
-  // open it — that's what "Invite Unregistered Sangat Manually" captures.
-  function shareToWhatsApp() {
-    const rsvpLink = `${window.location.origin}/invite/${inviteId}/rsvp`;
-    shareInvite(
-      {
-        dateStr,
-        startTime: invite.startTime,
-        endTime: invite.endTime,
-        address: invite.address,
-        rsvpBy: formatRsvpBy(invite.rsvpBy),
-      },
-      rsvpLink,
-      invite.hostName,
-    );
-  }
 
   function Row({ label, value, multiline }) {
     if (!value) return null;
@@ -125,7 +104,7 @@ export default function ViewInvite() {
           </button>
           <button
             className="btn-primary text-sm mt-3"
-            onClick={shareToWhatsApp}
+            onClick={() => navigate(`/invite/${inviteId}/invite-unregistered?mode=share`)}
           >
             Share Invite via WhatsApp
           </button>
