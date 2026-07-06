@@ -137,7 +137,9 @@ export default function InviteSangat() {
       );
       await Promise.all(appUserWrites);
       toast.success(`${newUids.length} invite${newUids.length === 1 ? '' : 's'} sent!`);
-      navigate(`/invite/${inviteId}/invited`);
+      // Now let the host also send these members the invite over WhatsApp (the
+      // app grants access but can't message on its own).
+      navigate(`/invite/${inviteId}/notify-sangat`);
     } catch (err) {
       console.error(err);
       showError('Could not send invites. Please try again.');
