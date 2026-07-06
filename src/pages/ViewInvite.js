@@ -38,12 +38,11 @@ export default function ViewInvite() {
     ? format(invite.date.toDate(), 'd MMMM yyyy')
     : '—';
 
-  // "Invite Unregistered Sangat" for a PUBLIC satsang: open the phone's share
-  // sheet so the host can bulk-pick recipients in WhatsApp/Messages and send.
-  // The link alone lets anyone view & RSVP a public satsang, so we don't need to
-  // capture who was picked. (Private satsangs go to the capture screen instead —
-  // see the button below — because there the invitee's number must be recorded
-  // for them to get access.)
+  // "Share Invite via WhatsApp": open the phone's share sheet so the host can
+  // bulk-pick recipients in WhatsApp/Messages and send the invite & RSVP link.
+  // For a PUBLIC satsang the link alone lets anyone view & RSVP. For a PRIVATE
+  // satsang the recipient still needs a guest grant (their number recorded) to
+  // open it — that's what "Invite Unregistered Sangat Manually" captures.
   function shareToWhatsApp() {
     const rsvpLink = `${window.location.origin}/invite/${inviteId}/rsvp`;
     shareInvite(
@@ -112,21 +111,25 @@ export default function ViewInvite() {
         </div>
       )}
 
-      {/* Row 2: invite people who aren't on the app yet. Public satsang → open
-          the WhatsApp/Messages share sheet to bulk-pick & send (no capture
-          needed, the link is enough). Private satsang → the capture screen,
-          where each invitee's number is recorded so they get access. */}
+      {/* Row 2: invite people who aren't on the app yet — two explicit choices.
+          Manually → the capture screen, where each invitee's number is recorded
+          so a private-satsang guest gets access once they register. Share via
+          WhatsApp → the phone's share sheet with the invite & RSVP link. */}
       {isHost && (
-        <button
-          className="btn-secondary text-sm mt-3"
-          onClick={() =>
-            invite.publicInvite === true
-              ? shareToWhatsApp()
-              : navigate(`/invite/${inviteId}/invite-unregistered`)
-          }
-        >
-          Invite Unregistered Sangat
-        </button>
+        <>
+          <button
+            className="btn-secondary text-sm mt-3"
+            onClick={() => navigate(`/invite/${inviteId}/invite-unregistered`)}
+          >
+            Invite Unregistered Sangat Manually
+          </button>
+          <button
+            className="btn-primary text-sm mt-3"
+            onClick={shareToWhatsApp}
+          >
+            Share Invite via WhatsApp
+          </button>
+        </>
       )}
 
       {/* Guests RSVP; the host doesn't RSVP to their own event */}
