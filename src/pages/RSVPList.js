@@ -8,11 +8,22 @@ import { normalizePhone } from '../utils/contacts';
 
 // Colour each person by how they were invited. A registered app member always
 // wins (green), even if also phone-invited; unregistered phone invites are split
-// by the button used — hand-added (blue) vs shared over WhatsApp (purple).
+// by the button used — hand-added (blue) vs shared over WhatsApp (purple). Each
+// row gets a matching tint + pill badge so the three groups are unmistakable.
 const NAME_COLOR = {
   app: 'text-green-700',
-  manual: 'text-blue-600',
-  whatsapp: 'text-purple-600',
+  manual: 'text-blue-700',
+  whatsapp: 'text-purple-700',
+};
+const ROW_BG = {
+  app: 'bg-green-50',
+  manual: 'bg-blue-50',
+  whatsapp: 'bg-purple-50',
+};
+const BADGE = {
+  app:      { label: 'Registered', cls: 'bg-green-100 text-green-700' },
+  manual:   { label: 'Manual',     cls: 'bg-blue-100 text-blue-700' },
+  whatsapp: { label: 'WhatsApp',   cls: 'bg-purple-100 text-purple-700' },
 };
 
 export default function RSVPList() {
@@ -170,10 +181,10 @@ export default function RSVPList() {
           A = Adults · C = Children · S = Seva
         </p>
         {(hasApp || hasManual || hasWhatsapp) && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-2">
-            {hasApp && <span className="text-green-700">● Registered</span>}
-            {hasManual && <span className="text-blue-600">● Invited manually</span>}
-            {hasWhatsapp && <span className="text-purple-600">● Shared via WhatsApp</span>}
+          <div className="flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wide mb-2">
+            {hasApp && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">Registered</span>}
+            {hasManual && <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Manually added</span>}
+            {hasWhatsapp && <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Shared via WhatsApp</span>}
           </div>
         )}
         <div className="card overflow-x-auto">
@@ -197,14 +208,21 @@ export default function RSVPList() {
             </thead>
             <tbody>
               {people.map(p => (
-                <tr key={p.key} className="border-t border-gray-50">
+                <tr key={p.key} className={`border-t border-gray-100 ${ROW_BG[p.category] || ''}`}>
                   <td className="py-2 pr-3">
-                    <span className={NAME_COLOR[p.category] || 'text-gray-700'}>
-                      {p.name}
-                    </span>
-                    {p.channel === 'phone' && p.displayPhone && (
-                      <span className={p.category === 'whatsapp' ? 'text-purple-400' : 'text-blue-400'}> ({p.displayPhone})</span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className={`font-semibold ${NAME_COLOR[p.category] || 'text-gray-700'}`}>
+                        {p.name}
+                      </span>
+                      {BADGE[p.category] && (
+                        <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${BADGE[p.category].cls}`}>
+                          {BADGE[p.category].label}
+                        </span>
+                      )}
+                      {p.channel === 'phone' && p.displayPhone && (
+                        <span className="text-xs text-gray-400">{p.displayPhone}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-2 px-3 text-center text-gray-700">{p.adults || ''}</td>
                   <td className="py-2 px-3 text-center text-gray-700">{p.children || ''}</td>
