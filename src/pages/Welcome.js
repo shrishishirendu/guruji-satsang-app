@@ -1,10 +1,14 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AppShell from '../components/AppShell';
 import { useAuth } from '../context/AuthContext';
 
 export default function Welcome() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Where the visitor was originally headed (e.g. an RSVP link), set by
+  // PrivateRoute. Carried through Register/Sign In so we can return them there.
+  const from = location.state?.from;
   const { currentUser } = useAuth();
   return (
     <AppShell>
@@ -41,13 +45,13 @@ export default function Welcome() {
           <div className="flex gap-3 w-full mt-2">
             <button
               className="btn-primary flex-1 text-sm px-3 py-2.5"
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/register', { state: { from } })}
             >
               Get Started
             </button>
             <button
               className="btn-secondary flex-1 text-sm px-3 py-2.5"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/login', { state: { from } })}
             >
               Sign In
             </button>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AppShell from '../components/AppShell';
 import { useAuth } from '../context/AuthContext';
 import { showError } from '../utils/notify';
@@ -7,6 +7,10 @@ import { showError } from '../utils/notify';
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // If they came from a protected link (e.g. an RSVP invite), go straight there
+  // after registering instead of the generic confirmation screen.
+  const from = location.state?.from;
   const [form, setForm] = useState({
     firstName: '', lastName: '', mobile: '', email: '', password: '',
   });
@@ -24,7 +28,7 @@ export default function Register() {
     setLoading(true);
     try {
       await register(form);
-      navigate('/registered');
+      navigate(from || '/registered');
     } catch (err) {
       showError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -102,7 +106,7 @@ export default function Register() {
         </button>
         <p className="text-center text-sm text-gray-500">
           Already registered?{' '}
-          <Link to="/login" className="text-saffron-600 font-medium">Sign in</Link>
+          <Link to="/login" state={{ from }} className="text-saffron-600 font-medium">Sign in</Link>
         </p>
       </form>
     </AppShell>

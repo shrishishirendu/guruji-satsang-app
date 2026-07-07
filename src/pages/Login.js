@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AppShell from '../components/AppShell';
 import { useAuth } from '../context/AuthContext';
 import { showError } from '../utils/notify';
@@ -7,6 +7,10 @@ import { showError } from '../utils/notify';
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Return the user to wherever they were headed (e.g. an RSVP link) after
+  // signing in; otherwise land on the calendar.
+  const from = location.state?.from;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +21,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/satsangs');
+      navigate(from || '/satsangs');
     } catch (err) {
       showError('Incorrect email or password. Please try again.');
     } finally {
@@ -64,7 +68,7 @@ export default function Login() {
         </p>
         <p className="text-center text-sm text-gray-500">
           New here?{' '}
-          <Link to="/register" className="text-saffron-600 font-medium">Register</Link>
+          <Link to="/register" state={{ from }} className="text-saffron-600 font-medium">Register</Link>
         </p>
       </form>
     </AppShell>
