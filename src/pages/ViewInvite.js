@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
+import { shareInvite } from '../utils/contacts';
 import { formatRsvpBy } from '../utils/dates';
 
 // WhatsApp brand glyph (simple-icons path). Rendered in WhatsApp green so the
@@ -21,7 +22,7 @@ function WhatsAppIcon({ className }) {
 export default function ViewInvite() {
   const { inviteId } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +48,25 @@ export default function ViewInvite() {
   const dateStr = invite.date
     ? format(invite.date.toDate(), 'd MMMM yyyy')
     : '—';
+
+  // "Share Invite via WhatsApp" opens the phone's share sheet INSTANTLY (one tap,
+  // no capture screen) prefilled with the invite + RSVP link — the host then picks
+  // WhatsApp and the recipient. The share sheet never reports who was picked, so
+  // this deliberately records nobody; for tracked invites use "Add … to Invite List".
+  const hostName = userProfile
+    ? `${userProfile.firstName} ${userProfile.lastName}`
+    : (invite.hostName || '');
+  const rsvpLink = `${window.location.origin}/invite/${inviteId}/rsvp`;
+  const inviteMeta = {
+    dateStr: invite.date ? format(invite.date.toDate(), 'd MMMM yyyy') : '',
+    startTime: invite.startTime,
+    endTime: invite.endTime,
+    address: invite.address,
+    rsvpBy: formatRsvpBy(invite.rsvpBy),
+  };
+  function handleShareWhatsApp() {
+    shareInvite(inviteMeta, rsvpLink, hostName);
+  }
 
   function Row({ label, value, multiline }) {
     if (!value) return null;
@@ -101,12 +121,12 @@ export default function ViewInvite() {
         </div>
       )}
 
-      {/* Row 2: two ways to invite people who aren't on the app — BOTH capture
-          each person (name + number) so they show up in the invite list, tagged
-          by channel. "Add … to Invite List" → manual capture, recorded as
-          'manual' (blue). "Share Invite via WhatsApp" → the same capture screen
-          in share mode, recorded as 'whatsapp' (purple) with a bulk WhatsApp
-          send. Each carries a caption so the two aren't mistaken for one another. */}
+      {/* Row 2: two ways to invite people who aren't on the app.
+          "Add … to Invite List" → manual capture screen; each person is saved to
+          the invite list (blue) so you can track them and message them one by one.
+          "Share Invite via WhatsApp" → opens the share sheet INSTANTLY (one tap,
+          no page); records nobody because the share sheet can't report who you
+          picked. Captions spell out the difference. */}
       {isHost && (
         <>
           <button
@@ -120,7 +140,7 @@ export default function ViewInvite() {
           </p>
           <button
             className="btn-secondary text-sm mt-3"
-            onClick={() => navigate(`/invite/${inviteId}/invite-unregistered?mode=share`)}
+            onClick={handleShareWhatsApp}
           >
             <span className="inline-flex items-center justify-center gap-2">
               Share Invite via
@@ -128,7 +148,7 @@ export default function ViewInvite() {
             </span>
           </button>
           <p className="text-xs text-gray-400 mt-1 text-center">
-            Add people, then send their invite over WhatsApp
+            Opens WhatsApp straight away — nothing to type
           </p>
         </>
       )}
