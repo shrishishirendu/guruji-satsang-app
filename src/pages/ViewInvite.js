@@ -5,7 +5,6 @@ import { format } from 'date-fns';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
-import { shareInvite } from '../utils/contacts';
 import { formatRsvpBy } from '../utils/dates';
 
 // WhatsApp brand glyph (simple-icons path). Rendered in WhatsApp green so the
@@ -22,7 +21,7 @@ function WhatsAppIcon({ className }) {
 export default function ViewInvite() {
   const { inviteId } = useParams();
   const navigate = useNavigate();
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser } = useAuth();
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,26 +47,6 @@ export default function ViewInvite() {
   const dateStr = invite.date
     ? format(invite.date.toDate(), 'd MMMM yyyy')
     : '—';
-
-  // "Share Invite via WhatsApp" fires the phone's share sheet directly from this
-  // page (WhatsApp, SMS, Messages, …) prefilled with the invite + RSVP link — no
-  // in-between capture screen. Note: the share sheet never reports who the host
-  // picked, so this can't record guests; for a private satsang, use "Invite
-  // Unregistered Sangat Manually" when a recipient needs guaranteed view access.
-  const hostName = userProfile
-    ? `${userProfile.firstName} ${userProfile.lastName}`
-    : (invite.hostName || '');
-  const rsvpLink = `${window.location.origin}/invite/${inviteId}/rsvp`;
-  const inviteMeta = {
-    dateStr: invite.date ? format(invite.date.toDate(), 'd MMMM yyyy') : '',
-    startTime: invite.startTime,
-    endTime: invite.endTime,
-    address: invite.address,
-    rsvpBy: formatRsvpBy(invite.rsvpBy),
-  };
-  function handleShareWhatsApp() {
-    shareInvite(inviteMeta, rsvpLink, hostName);
-  }
 
   function Row({ label, value, multiline }) {
     if (!value) return null;
@@ -122,12 +101,12 @@ export default function ViewInvite() {
         </div>
       )}
 
-      {/* Row 2: two clearly-different ways to invite people who aren't on the app.
-          "Add … to Invite List" → the manual capture screen that records each
-          number (so a private-satsang guest gets access once they register) and
-          lets the host message people one by one. "Share Invite via WhatsApp" →
-          fires the share sheet immediately to forward the invite + RSVP link.
-          Each carries a caption so the two aren't mistaken for one another. */}
+      {/* Row 2: two ways to invite people who aren't on the app — BOTH capture
+          each person (name + number) so they show up in the invite list, tagged
+          by channel. "Add … to Invite List" → manual capture, recorded as
+          'manual' (blue). "Share Invite via WhatsApp" → the same capture screen
+          in share mode, recorded as 'whatsapp' (purple) with a bulk WhatsApp
+          send. Each carries a caption so the two aren't mistaken for one another. */}
       {isHost && (
         <>
           <button
@@ -141,7 +120,7 @@ export default function ViewInvite() {
           </p>
           <button
             className="btn-secondary text-sm mt-3"
-            onClick={handleShareWhatsApp}
+            onClick={() => navigate(`/invite/${inviteId}/invite-unregistered?mode=share`)}
           >
             <span className="inline-flex items-center justify-center gap-2">
               Share Invite via
@@ -149,7 +128,7 @@ export default function ViewInvite() {
             </span>
           </button>
           <p className="text-xs text-gray-400 mt-1 text-center">
-            Opens WhatsApp to send the invite link right away
+            Add people, then send their invite over WhatsApp
           </p>
         </>
       )}
