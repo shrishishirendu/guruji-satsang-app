@@ -36,8 +36,6 @@ export default function InviteUnregistered() {
   const [guests, setGuests] = useState([]);          // [{ name, phone }]
   const [manualName, setManualName] = useState('');
   const [manualPhone, setManualPhone] = useState('');
-  const [bulkOpen, setBulkOpen] = useState(false);   // "paste several" panel
-  const [bulkText, setBulkText] = useState('');
   const [sending, setSending] = useState(false);
 
   // Numbers already saved to the invite list when the page opened, so re-opening
@@ -108,6 +106,7 @@ export default function InviteUnregistered() {
   }
 
   function handleManualAdd() {
+    if (!manualName.trim()) return showError('Enter a name.');
     if (!manualPhone.trim()) return showError('Enter a phone number.');
     addGuest(manualName, manualPhone);
     setManualName('');
@@ -129,21 +128,6 @@ export default function InviteUnregistered() {
       }
     });
     return fresh;
-  }
-
-  // Paste-a-list add: split on newlines / commas / semicolons so a number with
-  // internal spaces ("0404 876 234") stays intact, then add every valid one.
-  function handleBulkAdd() {
-    const chunks = bulkText.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
-    if (chunks.length === 0) return showError('Paste some phone numbers first.');
-    const fresh = dedupeNew(chunks.map(raw => ({ name: raw, phone: raw })));
-    if (fresh.length === 0) {
-      return showError('No new valid numbers found — check the format and try again.');
-    }
-    setGuests(g => [...g, ...fresh]);
-    toast.success(`${fresh.length} number${fresh.length === 1 ? '' : 's'} added`);
-    setBulkText('');
-    setBulkOpen(false);
   }
 
   // ---- WhatsApp message + saving the grant ---------------------------------
@@ -289,7 +273,7 @@ export default function InviteUnregistered() {
       <div className="flex gap-2 mb-3">
         <input
           className="input-field"
-          placeholder="Name (optional)"
+          placeholder="Name"
           value={manualName}
           onChange={e => setManualName(e.target.value)}
         />
@@ -309,44 +293,6 @@ export default function InviteUnregistered() {
           Add
         </button>
       </div>
-
-      {/* Paste a whole list of numbers at once — quicker than adding one by one
-          (e.g. copied from a WhatsApp group or a note). */}
-      {!bulkOpen ? (
-        <button
-          type="button"
-          className="text-saffron-600 text-sm font-medium mb-3 hover:text-saffron-800"
-          onClick={() => setBulkOpen(true)}
-        >
-          + Add several numbers at once
-        </button>
-      ) : (
-        <div className="mb-3">
-          <textarea
-            className="input-field"
-            rows={4}
-            placeholder={'Paste numbers — one per line or comma-separated:\n0404 876 234\n0413 555 111'}
-            value={bulkText}
-            onChange={e => setBulkText(e.target.value)}
-          />
-          <div className="flex gap-3 mt-2">
-            <button
-              type="button"
-              className="btn-secondary flex-1"
-              onClick={() => { setBulkOpen(false); setBulkText(''); }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-primary flex-1"
-              onClick={handleBulkAdd}
-            >
-              Add all
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Guest list */}
       {guests.length > 0 && (
