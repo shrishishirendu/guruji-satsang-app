@@ -65,7 +65,7 @@ export function buildInviteMessage(invite, rsvpLink, hostName) {
   }
   if (invite?.address) lines.push(`📍 ${invite.address}`);
   if (invite?.rsvpBy) lines.push(`Please RSVP by ${invite.rsvpBy}`);
-  lines.push('', `Tap to view & RSVP:`, rsvpLink);
+  lines.push('', `Tap to Register and RSVP:`, rsvpLink);
   return lines.join('\n');
 }
 
