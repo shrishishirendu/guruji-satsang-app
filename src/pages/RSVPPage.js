@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
+import { ensureSelfGuestGrant } from '../utils/satsangs';
 import { showError } from '../utils/notify';
 
 const MAX_PER_KIND = 7;
@@ -56,9 +57,16 @@ export default function RSVPPage() {
 
   useEffect(() => {
     getDoc(doc(db, 'satsangs', inviteId)).then(snap => {
-      if (snap.exists()) setInvite({ id: snap.id, ...snap.data() });
+      if (!snap.exists()) return;
+      const data = { id: snap.id, ...snap.data() };
+      setInvite(data);
+      // Someone opening the shared link (not the host) is recorded so the host
+      // can track who opened and it shows on the viewer's calendar.
+      if (currentUser && data.hostUid !== currentUser.uid) {
+        ensureSelfGuestGrant(inviteId, currentUser, userProfile);
+      }
     });
-  }, [inviteId]);
+  }, [inviteId, currentUser, userProfile]);
 
   // Load this user's existing RSVP (if any) so re-opening shows their saved
   // numbers and lets them edit rather than being blocked as a duplicate.

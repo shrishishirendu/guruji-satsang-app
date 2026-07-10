@@ -1,7 +1,8 @@
 import {
-  collection, query, where, getDocs, doc, getDoc,
+  collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { normalizePhone } from './contacts';
 
 // Loads every satsang the signed-in user is allowed to see, mirroring the
 // Firestore security rules so each sub-query is provably allowed (no
@@ -50,4 +51,36 @@ export async function loadVisibleSatsangs(currentUser, myPhone) {
   });
 
   return [...byId.values()];
+}
+
+// Records the signed-in viewer as having opened this satsang, so (a) the host
+// can see who opened the shared link in their invite/RSVP list and (b) it shows
+// up on the viewer's own calendar. Keyed on the viewer's own normalized number
+// (a "guest" self-grant), idempotent, and completely non-fatal — viewing the
+// satsang never depends on this succeeding. Skips the host (they don't invite
+// themselves) and anyone already recorded (by the host or a previous open), so
+// it never clobbers a record the host made.
+export async function ensureSelfGuestGrant(inviteId, currentUser, userProfile) {
+  if (!inviteId || !currentUser || !userProfile) return;
+  const phone = userProfile.mobileNormalized || normalizePhone(userProfile.mobile || '');
+  if (!phone) return;
+  const ref = doc(db, 'guests', `${inviteId}_${phone}`);
+  try {
+    const existing = await getDoc(ref);
+    if (existing.exists()) return;   // already tracked — leave it as-is
+    const name = `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim()
+      || currentUser.email || 'Sangat member';
+    await setDoc(ref, {
+      inviteId,
+      name,
+      phone,
+      displayPhone: userProfile.mobile || phone,
+      addedByUid: currentUser.uid,
+      source: 'opened-link',
+      via: 'whatsapp',
+      invitedAt: Timestamp.now(),
+    });
+  } catch (_) {
+    // Non-fatal: the satsang is still fully viewable without this record.
+  }
 }

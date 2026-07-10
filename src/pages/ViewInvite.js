@@ -6,6 +6,7 @@ import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { shareInvite } from '../utils/contacts';
+import { ensureSelfGuestGrant } from '../utils/satsangs';
 import { formatRsvpBy } from '../utils/dates';
 
 // WhatsApp brand glyph (simple-icons path). Rendered in WhatsApp green so the
@@ -29,13 +30,21 @@ export default function ViewInvite() {
   useEffect(() => {
     getDoc(doc(db, 'satsangs', inviteId))
       .then(snap => {
-        if (snap.exists()) setInvite({ id: snap.id, ...snap.data() });
+        if (snap.exists()) {
+          const data = { id: snap.id, ...snap.data() };
+          setInvite(data);
+          // Someone opening the shared link (not the host) is recorded so the
+          // host can track who opened and it shows on the viewer's calendar.
+          if (currentUser && data.hostUid !== currentUser.uid) {
+            ensureSelfGuestGrant(inviteId, currentUser, userProfile);
+          }
+        }
         setLoading(false);
       })
-      // A private satsang the user isn't invited to is denied by the rules —
-      // leave invite null so it shows "not found" rather than crashing.
+      // Any read error (e.g. transient) — leave invite null so it shows
+      // "not found" rather than crashing.
       .catch(() => setLoading(false));
-  }, [inviteId]);
+  }, [inviteId, currentUser, userProfile]);
 
   if (loading) return <AppShell><p className="text-center text-gray-400 mt-8">Loading…</p></AppShell>;
   if (!invite)  return <AppShell><p className="text-center text-gray-400 mt-8">Invite not found.</p></AppShell>;
@@ -121,12 +130,13 @@ export default function ViewInvite() {
         </div>
       )}
 
-      {/* Row 2: two ways to invite people who aren't on the app.
+      {/* Row 2: two ways to send the invite over WhatsApp.
           "Add … to Invite List" → manual capture screen; each person is saved to
-          the invite list (blue) so you can track them and message them one by one.
-          "Share Invite via WhatsApp" → opens the share sheet INSTANTLY (one tap,
-          no page); records nobody because the share sheet can't report who you
-          picked. Captions spell out the difference. */}
+          the invite list up front so you can track and message them one by one.
+          "Share Invite via WhatsApp" → opens the share sheet INSTANTLY (one tap).
+          The share sheet can't report who you picked, but that's fine now: whoever
+          opens the link is recorded automatically (ensureSelfGuestGrant), so they
+          can see the satsang and appear in your invite/RSVP list either way. */}
       {isHost && (
         <>
           <button
