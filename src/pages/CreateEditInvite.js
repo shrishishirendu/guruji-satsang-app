@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { uploadImage } from '../cloudinary/upload';
+import { validateImageFile, ALLOWED_IMAGE_LABEL, MAX_IMAGE_BYTES } from '../utils/validateImageFile';
 import { useAuth } from '../context/AuthContext';
 import { showError } from '../utils/notify';
 
@@ -77,6 +78,22 @@ export default function CreateEditInvite() {
 
   function set(field, value) {
     setForm(f => ({ ...f, [field]: value }));
+  }
+
+  // Validate the picked file up front (magic-byte + decode check) so a bad
+  // or non-image file is caught before the user fills out the whole form.
+  async function handleImagePick(e) {
+    const input = e.target;
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      await validateImageFile(file);
+      setImageFile(file);
+    } catch (err) {
+      setImageFile(null);
+      input.value = '';        // let the user re-pick the same file to retry
+      showError(err.message);
+    }
   }
 
   async function handleSave(e) {
@@ -252,9 +269,9 @@ export default function CreateEditInvite() {
             <input
               id="img-upload"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/gif,image/webp"
               className="hidden"
-              onChange={e => setImageFile(e.target.files[0])}
+              onChange={handleImagePick}
             />
             <input
               className="input-field cursor-pointer"
@@ -270,6 +287,9 @@ export default function CreateEditInvite() {
               Upload
             </label>
           </div>
+          <p className="text-xs text-gray-400 mt-1">
+            {ALLOWED_IMAGE_LABEL} only · up to {Math.round(MAX_IMAGE_BYTES / (1024 * 1024))} MB
+          </p>
           {existingImageUrl && !imageFile && (
             <img src={existingImageUrl} alt="Current invite" className="mt-2 h-24 rounded-xl object-cover" />
           )}

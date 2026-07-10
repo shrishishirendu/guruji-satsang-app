@@ -10,6 +10,8 @@
 //        - Save, then copy the preset name into UPLOAD_PRESET below
 // ============================================================
 
+import { validateImageFile } from '../utils/validateImageFile';
+
 const CLOUD_NAME    = 'dwh0lam6j';      // e.g. "dxy123abc"
 const UPLOAD_PRESET = 'Satsang-upload-preset';   // e.g. "satsang_unsigned"
 
@@ -19,6 +21,11 @@ const UPLOAD_PRESET = 'Satsang-upload-preset';   // e.g. "satsang_unsigned"
  * @returns {Promise<string>} secure_url of the uploaded image
  */
 export async function uploadImage(file) {
+  // Final safety gate: never send anything to Cloudinary that isn't a
+  // verified, genuine image. The UI validates on selection too, but this
+  // guards every caller regardless of where the file came from.
+  await validateImageFile(file);
+
   const data = new FormData();
   data.append('file', file);
   data.append('upload_preset', UPLOAD_PRESET);
