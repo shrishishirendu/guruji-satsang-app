@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AppShell from '../components/AppShell';
 import { useAuth } from '../context/AuthContext';
 import { showError } from '../utils/notify';
+import { isValidAuMobile, AU_MOBILE_HINT } from '../utils/contacts';
 
 export default function Register() {
   const { register } = useAuth();
@@ -24,6 +25,9 @@ export default function Register() {
     e.preventDefault();
     if (!form.firstName || !form.lastName || !form.mobile || !form.email || !form.password) {
       return showError('Please fill in all required fields.');
+    }
+    if (!isValidAuMobile(form.mobile)) {
+      return showError(`Please enter a valid Australian mobile number (${AU_MOBILE_HINT}).`);
     }
     setLoading(true);
     try {
@@ -80,6 +84,7 @@ export default function Register() {
             value={form.mobile}
             onChange={handleChange}
           />
+          <p className="text-xs text-gray-400 mt-1">Australian mobile · {AU_MOBILE_HINT}</p>
         </div>
         <div>
           <input

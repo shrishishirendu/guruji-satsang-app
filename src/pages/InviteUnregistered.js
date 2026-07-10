@@ -9,8 +9,8 @@ import AppShell from '../components/AppShell';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import {
-  isContactPickerSupported, pickContacts, normalizePhone,
-  buildInviteMessage, buildWhatsAppLink, shareInvite,
+  isContactPickerSupported, pickContacts, normalizePhone, isValidAuMobile,
+  AU_MOBILE_HINT, buildInviteMessage, buildWhatsAppLink, shareInvite,
 } from '../utils/contacts';
 import { showError } from '../utils/notify';
 import { formatRsvpBy } from '../utils/dates';
@@ -79,18 +79,23 @@ export default function InviteUnregistered() {
 
   // ---- Building the guest list ---------------------------------------------
 
+  // Adds one guest after validating the number. Returns true only if a new guest
+  // was actually added, so callers know whether to clear their inputs.
   function addGuest(name, phone) {
     const raw = (phone || '').trim();
-    if (!raw) return showError('A phone number is required.');
+    if (!raw) { showError('A phone number is required.'); return false; }
+    if (!isValidAuMobile(raw)) {
+      showError(`Enter a valid Australian mobile number (${AU_MOBILE_HINT}).`);
+      return false;
+    }
     const norm = normalizePhone(raw);
-    setGuests(g => {
-      // Dedupe by normalized number so "0404…", "+61404…" and "61404…" match.
-      if (g.some(x => normalizePhone(x.phone) === norm)) {
-        toast('Already added', { icon: 'ℹ️' });
-        return g;
-      }
-      return [...g, { name: (name || '').trim() || raw, phone: raw }];
-    });
+    // Dedupe by normalized number so "0404…", "+61404…" and "61404…" match.
+    if (guests.some(x => normalizePhone(x.phone) === norm)) {
+      toast('Already added', { icon: 'ℹ️' });
+      return false;
+    }
+    setGuests(g => [...g, { name: (name || '').trim() || raw, phone: raw }]);
+    return true;
   }
 
   function removeGuest(phone) {
@@ -101,28 +106,38 @@ export default function InviteUnregistered() {
     const picked = await pickContacts();
     if (picked.length === 0) return;
     const fresh = dedupeNew(picked.map(c => ({ name: c.name || c.phone, phone: c.phone })));
-    if (fresh.length) setGuests(g => [...g, ...fresh]);
-    toast.success(`${fresh.length} contact${fresh.length === 1 ? '' : 's'} added`);
+    if (fresh.length) {
+      setGuests(g => [...g, ...fresh]);
+      toast.success(`${fresh.length} contact${fresh.length === 1 ? '' : 's'} added`);
+    } else {
+      // Everything picked was a duplicate or not a valid Australian mobile.
+      showError('No valid Australian mobile numbers found in your selection.');
+    }
   }
 
   function handleManualAdd() {
     if (!manualName.trim()) return showError('Enter a name.');
     if (!manualPhone.trim()) return showError('Enter a phone number.');
-    addGuest(manualName, manualPhone);
-    setManualName('');
-    setManualPhone('');
+    // Only clear the inputs if the guest was actually added (valid, not a dupe),
+    // so a rejected number isn't silently wiped from the form.
+    if (addGuest(manualName, manualPhone)) {
+      setManualName('');
+      setManualPhone('');
+    }
   }
 
-  // Given [{ name, phone }, …], keep only ones with a valid number that aren't
-  // already in the list (deduped by normalized number). Computed against the
-  // current `guests` so the caller can also use the returned length for a toast.
+  // Given [{ name, phone }, …], keep only ones that are a valid Australian mobile
+  // and aren't already in the list (deduped by normalized number). Landlines,
+  // foreign, and half-typed numbers are dropped. Computed against the current
+  // `guests` so the caller can also use the returned length for a toast.
   function dedupeNew(candidates) {
     const existing = new Set(guests.map(x => normalizePhone(x.phone)));
     const fresh = [];
     candidates.forEach(c => {
       const raw = (c.phone || '').trim();
+      if (!isValidAuMobile(raw)) return;
       const norm = normalizePhone(raw);
-      if (norm && !existing.has(norm)) {
+      if (!existing.has(norm)) {
         existing.add(norm);
         fresh.push({ name: (c.name || '').trim() || raw, phone: raw });
       }
