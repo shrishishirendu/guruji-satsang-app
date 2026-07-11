@@ -20,6 +20,7 @@ import InviteSangat     from './pages/InviteSangat';
 import InviteUnregistered from './pages/InviteUnregistered';
 import NotifySangat     from './pages/NotifySangat';
 import InviteSent       from './pages/InviteSent';
+import AdminDashboard   from './pages/AdminDashboard';
 
 // Clears lingering error toasts whenever the route changes, so a stale error
 // message doesn't hang around after the user navigates to a different screen.
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="/invite/:inviteId/invite-unregistered" element={<PrivateRoute><InviteUnregistered /></PrivateRoute>} />
           <Route path="/invite/:inviteId/notify-sangat" element={<PrivateRoute><NotifySangat /></PrivateRoute>} />
           <Route path="/invite/:inviteId/invited"     element={<PrivateRoute><InviteSent /></PrivateRoute>} />
+          <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

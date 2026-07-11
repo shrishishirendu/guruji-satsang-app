@@ -26,6 +26,17 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/guests/$(satsangId + '_' + myPhone()));
     }
 
+    // Admins get read-only visibility across all collections for the admin
+    // dashboard. UID-based (the uid comes from the auth token and can't be
+    // spoofed). Keep this list in sync with ADMIN_UIDS in src/config/admins.js.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.uid in [
+          'QRyzzGcLqWZMvsi2KlTPqohCASM2',  // shri.shishirendu@gmail.com
+          'dc4xSXwmYAhmCS6pAGCTqwUJlR72'   // poojamohitjain07@gmail.com (Mohit Jain)
+        ];
+    }
+
     // True when the user may forward/add others to a satsang. For a PRIVATE
     // satsang only the host may invite — an invitee cannot pass access on. A
     // PUBLIC satsang may be forwarded by anyone who can see it.
@@ -63,7 +74,8 @@ service cloud.firestore {
         resource.data.publicInvite == true ||
         request.auth.uid == resource.data.hostUid ||
         isInvited(satsangId) ||
-        isPhoneGuest(satsangId)
+        isPhoneGuest(satsangId) ||
+        isAdmin()
       );
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.hostUid;
@@ -75,7 +87,8 @@ service cloud.firestore {
     match /rsvps/{rsvpId} {
       allow read: if request.auth != null && (
         request.auth.uid == resource.data.uid ||
-        request.auth.uid == get(/databases/$(database)/documents/satsangs/$(resource.data.inviteId)).data.hostUid
+        request.auth.uid == get(/databases/$(database)/documents/satsangs/$(resource.data.inviteId)).data.hostUid ||
+        isAdmin()
       );
       // Anyone signed in may submit their OWN rsvp. Viewing a satsang is open to
       // whoever holds the link, so responding to it is too.
@@ -90,7 +103,8 @@ service cloud.firestore {
     match /invitations/{invId} {
       allow read: if request.auth != null &&
         (request.auth.uid == resource.data.fromUid ||
-         request.auth.uid == resource.data.toUid);
+         request.auth.uid == resource.data.toUid ||
+         isAdmin());
       allow create: if request.auth != null
         && invId == request.resource.data.inviteId + '_' + request.resource.data.toUid
         && request.auth.uid == request.resource.data.fromUid
@@ -108,7 +122,8 @@ service cloud.firestore {
         // The invited guest themselves, once registered: their normalized number
         // matches the grant, so they can list their own phone invites (needed to
         // surface them on the calendar, not just via the direct link).
-        resource.data.phone == myPhone()
+        resource.data.phone == myPhone() ||
+        isAdmin()
       );
       allow create: if request.auth != null
         && guestId == request.resource.data.inviteId + '_' + request.resource.data.phone

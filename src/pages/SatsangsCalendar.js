@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval,
 import AppShell from '../components/AppShell';
 import { useAuth } from '../context/AuthContext';
 import { loadVisibleSatsangs } from '../utils/satsangs';
+import { isAdminUid } from '../config/admins';
 
 export default function SatsangsCalendar() {
   const navigate = useNavigate();
@@ -73,6 +74,15 @@ export default function SatsangsCalendar() {
       >
         ➕ Create a Satsang Invite
       </button>
+
+      {isAdminUid(currentUser?.uid) && (
+        <button
+          onClick={() => navigate('/admin')}
+          className="text-sm text-saffron-600 w-full text-center hover:underline mb-4 font-medium"
+        >
+          🛠️ Admin Dashboard
+        </button>
+      )}
 
       <p className="text-center text-sm text-gray-600 mb-2">
         …or tap a date below to view or add a Satsang
